@@ -1,0 +1,12 @@
+# Compiled binaries
+*.exe
+*.o
+*.obj
+*.out
+
+# IDEs and editors
+.vscode/
+.vs/
+*.user
+*.suo
+*.db

@@ -5,10 +5,18 @@
 #include <sstream>
 #include <ctime>
 #include <cstdlib>
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include "biom.h" // Подключаем интерфейс биомов и структуру Player
 
 int main() {
+#ifdef _WIN32
+    SetConsoleCP(65001);
+    SetConsoleOutputCP(65001);
+#else
     setlocale(LC_ALL, "Russian");
+#endif
     std::cout << "Привет, мир!" << std::endl;
     
     std::cout << "Привет, для начала выбери никнейм персонажу: ";

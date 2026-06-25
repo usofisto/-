@@ -36,6 +36,7 @@ struct TreeInfo {
     bool active;
     float shakeTimer;
     float respawnTimer;
+    int treeType; // 1-10 for unique textures
 };
 
 struct RockInfo {
@@ -45,6 +46,7 @@ struct RockInfo {
     bool active;
     float shakeTimer;
     float respawnTimer;
+    int rockType; // 1-5 for unique textures
 };
 
 struct WanderingSlime {
@@ -53,6 +55,7 @@ struct WanderingSlime {
     int hp, maxHp;
     bool active;
     int id;
+    int slimeType; // 1=green, 2=red, 3=blue
 };
 
 struct FloatingText {

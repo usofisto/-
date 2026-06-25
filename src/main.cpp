@@ -138,6 +138,35 @@ int main() {
     ResourceManager::Get().LoadTex("herb", "assets/herb.png");
     ResourceManager::Get().LoadTex("goldflower", "assets/goldflower.png");
 
+    // Новые текстуры деревьев (10 видов)
+    for (int i = 1; i <= 10; i++) {
+        std::string key = "tree_" + std::to_string(i);
+        std::string path = "assets/trees/" + key + ".png";
+        ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
+    }
+
+    // Новые текстуры травы (10 чанков)
+    for (int i = 1; i <= 10; i++) {
+        std::string key = "grass_" + std::to_string(i);
+        std::string path = "assets/grass/" + key + ".png";
+        ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
+    }
+
+    // Новые текстуры камней (5 видов)
+    for (int i = 1; i <= 5; i++) {
+        std::string key = "rock_" + std::to_string(i);
+        std::string path = "assets/rocks/" + key + ".png";
+        ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
+    }
+
+    // Новые текстуры слизней
+    ResourceManager::Get().LoadTex("slime_green", "assets/slime_green.png");
+    ResourceManager::Get().LoadTex("slime_red", "assets/slime_red.png");
+    ResourceManager::Get().LoadTex("slime_blue", "assets/slime_blue.png");
+
+    // Озеро
+    ResourceManager::Get().LoadTex("lake", "assets/lake.png");
+
     // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
     GameState state = STATE_MENU;
     Player player;
@@ -255,6 +284,7 @@ int main() {
             ri.active = true;
             ri.shakeTimer = 0.0f;
             ri.respawnTimer = 0.0f;
+            ri.rockType = 1 + rand()%5; // 5 видов камней
             rocks.push_back(ri);
         }
 
@@ -278,6 +308,7 @@ int main() {
                 ti.active = true;
                 ti.shakeTimer = 0.0f;
                 ti.respawnTimer = 0.0f;
+                ti.treeType = 1 + rand()%10; // 10 видов деревьев
                 trees.push_back(ti);
             }
         }
@@ -315,6 +346,7 @@ int main() {
             s.wanderTimer = 0; s.speed = 40.0f+(float)(rand()%28);
             s.maxHp = 25+rand()%15; s.hp = s.maxHp;
             s.active = true; s.id = i;
+            s.slimeType = 1 + rand()%3; // 3 вида слизней
             slimes.push_back(s);
         }
     };
@@ -565,14 +597,27 @@ int main() {
                     Vector2 toT={s.targetPosition.x-s.position.x,s.targetPosition.y-s.position.y};
                     float dt2=sqrtf(toT.x*toT.x+toT.y*toT.y);
                     if (dt2>2) { s.position.x+=(toT.x/dt2)*s.speed*dt; s.position.y+=(toT.y/dt2)*s.speed*dt; }
-                    if (rand()%100<8) SpawnParticle(s.position, {0,0}, s.speed>60?Color{248,113,113,160}:Color{74,222,128,160}, 3+rand()%3, 0.6f+(rand()%5)/10.f);
+                    if (rand()%100<8) {
+                        Color pCol;
+                        switch (s.slimeType) {
+                            case 2: pCol = Color{248,113,113,160}; break;
+                            case 3: pCol = Color{96,165,250,160}; break;
+                            default: pCol = Color{74,222,128,160}; break;
+                        }
+                        SpawnParticle(s.position, {0,0}, pCol, 3+rand()%3, 0.6f+(rand()%5)/10.f);
+                    }
 
                     // Встреча со слизнем
                     float dp=sqrtf(powf(playerPos.x-s.position.x,2)+powf(playerPos.y-s.position.y,2));
                     if (dp<(playerRadius+14)) {
                         state=STATE_MEADOW_SLIME;
                         activeSlimeIndex=(int)i; slimeHp=s.hp; slimeMaxHp=s.maxHp;
-                        slimeType=s.speed>60?"Быстрая Алая Слизь":"Зеленая Слизь";
+                        // Определяем тип слизня
+                        switch (s.slimeType) {
+                            case 2: slimeType="Алая Слизь"; break;
+                            case 3: slimeType="Ледяная Слизь"; break;
+                            default: slimeType="Зеленая Слизь"; break;
+                        }
                         combatLog.clear(); combatLog.push_back("!!! Нарвался на "+slimeType+"!");
                         combatTurnState=0; combatTimer=0; screenShakeIntensity=0; redFlashTimer=0; slashEffectTimer=0;
                     }
@@ -730,10 +775,14 @@ int main() {
             if (state==STATE_2D_WORLD) {
                 BeginMode2D(camera);
 
-                // Трава
-                Texture2D grassTex = ResourceManager::Get().GetTex("grass");
+                // Трава (уникальные чанки)
                 for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
-                    if (grassTex.id!=0) DrawTexture(grassTex, tx*grassTex.width, ty*grassTex.height, WHITE);
+                    // Используем уникальный чанк травы для каждого тайла
+                    int grassIdx = ((tx * 7 + ty * 13) % 10) + 1; // детерминированный рандом
+                    std::string grassKey = "grass_" + std::to_string(grassIdx);
+                    Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
+                    if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass"); // фоллбэк
+                    if (grassTex.id != 0) DrawTexture(grassTex, tx*grassTex.width, ty*grassTex.height, WHITE);
                     else { DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); DrawRectangleLines(tx*100,ty*100,100,100,Color{20,85,40,30}); }
                 }
 
@@ -779,9 +828,15 @@ int main() {
                 }
 
                 // ==================== ОЗЕРО С ВОЛНАМИ ====================
-                // Основная вода
-                DrawCircleV(lakePos, lakeRadius, Color{30, 100, 170, 200});
-                DrawCircleV(lakePos, lakeRadius - 5, Color{40, 120, 190, 180});
+                // Основная вода с текстурой
+                Texture2D lakeTex = ResourceManager::Get().GetTex("lake");
+                if (lakeTex.id != 0) {
+                    float lakeScale = (lakeRadius * 2.0f) / lakeTex.width;
+                    DrawTextureEx(lakeTex, {lakePos.x - lakeRadius, lakePos.y - lakeRadius}, 0, lakeScale, WHITE);
+                } else {
+                    DrawCircleV(lakePos, lakeRadius, Color{30, 100, 170, 200});
+                    DrawCircleV(lakePos, lakeRadius - 5, Color{40, 120, 190, 180});
+                }
                 // Волны
                 for (int i = 0; i < 3; i++) {
                     float waveR = lakeRadius - 20 - i * 20;
@@ -804,7 +859,10 @@ int main() {
                 // ==================== ДЕРЕВЬЯ (PNG) ====================
                 for (auto& t : trees) {
                     if (!t.active) continue;
-                    Texture2D treeTex = ResourceManager::Get().GetTex("tree");
+                    // Используем уникальную текстуру для каждого дерева
+                    std::string treeKey = "tree_" + std::to_string(t.treeType);
+                    Texture2D treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
+                    if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree"); // фоллбэк
 
                     // Позиция с дрожанием
                     float offX = 0;
@@ -834,7 +892,10 @@ int main() {
                 // ==================== КАМНИ (PNG) ====================
                 for (auto& r : rocks) {
                     if (!r.active) continue;
-                    Texture2D rockTex = ResourceManager::Get().GetTex("rock");
+                    // Используем уникальную текстуру для каждого камня
+                    std::string rockKey = "rock_" + std::to_string(r.rockType);
+                    Texture2D rockTex = ResourceManager::Get().GetTex(rockKey.c_str());
+                    if (rockTex.id == 0) rockTex = ResourceManager::Get().GetTex("rock"); // фоллбэк
 
                     float offX = 0;
                     if (r.shakeTimer > 0) offX = sinf(r.shakeTimer * 40) * 2;
@@ -1090,9 +1151,9 @@ int main() {
                 float cb=sinf(framesCounter*0.16f)*6;
                 float srx=55+cb*0.7f, sry=45-cb*0.7f;
                 Vector2 sc={sCard.x+sCard.width/2,sCard.y+80+cb*0.5f};
-                Color sCol=slimeType.find("Алая")!=std::string::npos?Color{220,38,38,255}:Color{34,197,94,255};
-                Color sGlow=slimeType.find("Алая")!=std::string::npos?Color{248,113,113,160}:Color{74,222,128,160};
-                Color sOut=slimeType.find("Алая")!=std::string::npos?Color{127,29,29,255}:Color{20,83,45,255};
+                Color sCol=slimeType.find("Алая")!=std::string::npos?Color{220,38,38,255}:slimeType.find("Ледяная")!=std::string::npos?Color{59,130,246,255}:Color{34,197,94,255};
+                Color sGlow=slimeType.find("Алая")!=std::string::npos?Color{248,113,113,160}:slimeType.find("Ледяная")!=std::string::npos?Color{96,165,250,160}:Color{74,222,128,160};
+                Color sOut=slimeType.find("Алая")!=std::string::npos?Color{127,29,29,255}:slimeType.find("Ледяная")!=std::string::npos?Color{29,78,137,255}:Color{20,83,45,255};
 
                 if (slimeHp>0) {
                     DrawEllipse((int)sc.x,(int)sc.y,srx,sry,sOut);

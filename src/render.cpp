@@ -1,5 +1,6 @@
 #include "render.h"
 #include "resource_manager.h"
+#include "particles.h"
 #include <cmath>
 
 void DrawTextureCentered(Texture2D tex, Vector2 position, float scale, float rotation) {
@@ -377,11 +378,20 @@ void DrawMapItem(const MapItem& item) {
 void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bgDark) {
     if (!slime.active) return;
     
-    Texture2D tex = ResourceManager::Get().GetTex("slime");
+    // Выбираем текстуру по типу слизня
+    std::string texKey = "slime";
+    switch (slime.slimeType) {
+        case 1: texKey = "slime_green"; break;
+        case 2: texKey = "slime_red"; break;
+        case 3: texKey = "slime_blue"; break;
+    }
+    Texture2D tex = ResourceManager::Get().GetTex(texKey.c_str());
+    if (tex.id == 0) tex = ResourceManager::Get().GetTex("slime"); // фоллбэк
+    
     if (tex.id != 0) {
         // === АНИМАЦИЯ СЛИЗНЯ ===
         float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
-        float squish = sinf(framesCounter * 0.16f + slime.id + 0.5f) * 0.15f; // Деформация тела
+        float squish = sinf(framesCounter * 0.16f + slime.id + 0.5f) * 0.15f;
         Vector2 renderPos = { slime.position.x, slime.position.y + bounce * 0.4f };
         
         // Тень с деформацией
@@ -389,80 +399,60 @@ void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bg
         DrawEllipse(slime.position.x, slime.position.y + 16, 14 * shadowSquish, 5, Color{ 0, 0, 0, 110 });
         
         Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
-        // Флип в зависимости от направления
         if (slime.targetPosition.x < slime.position.x) source.width = -source.width;
         
-        // Масштаб с деформацией (сплющивается при приземлении)
         float scaleX = 48.0f * (1.0f + squish);
         float scaleY = 48.0f * (1.0f - squish);
         Rectangle dest = { renderPos.x, renderPos.y, scaleX, scaleY };
         Vector2 origin = { scaleX / 2.0f, scaleY / 2.0f };
         
-        // Цвет зависит от скорости
-        Color tint = WHITE;
-        if (slime.speed > 60.0f) tint = Color{ 255, 150, 150, 255 };
-        
-        DrawTexturePro(tex, source, dest, origin, 0.0f, tint);
+        DrawTexturePro(tex, source, dest, origin, 0.0f, WHITE);
         return;
     }
     
-    // Деформация тела (пружинистый прыжок) - Fallback
+    // Fallback процедурный
     float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
     float rx = 15.5f + bounce * 0.5f;
     float ry = 12.5f - bounce * 0.5f;
     
     Vector2 slimePos = { slime.position.x, slime.position.y + bounce * 0.4f };
     
-    // Тень под слизнем
     DrawEllipse(slime.position.x, slime.position.y + 10, rx * 0.85f, 4, Color{ 0, 0, 0, 110 });
     
-    Color sColor = Color{ 34, 197, 94, 255 };
-    Color sGlow = Color{ 74, 222, 128, 160 };
-    Color sOutline = Color{ 20, 83, 45, 255 };
-    Color sMid = Color{ 22, 163, 74, 255 };
-    
-    if (slime.speed > 60.0f) {
-        sColor = Color{ 220, 38, 38, 255 };
-        sGlow = Color{ 248, 113, 113, 160 };
-        sOutline = Color{ 127, 29, 29, 255 };
-        sMid = Color{ 185, 28, 28, 255 };
+    Color sColor, sGlow, sOutline;
+    switch (slime.slimeType) {
+        case 2: // красный
+            sColor = Color{ 220, 38, 38, 255 };
+            sGlow = Color{ 248, 113, 113, 160 };
+            sOutline = Color{ 127, 29, 29, 255 };
+            break;
+        case 3: // синий
+            sColor = Color{ 59, 130, 246, 255 };
+            sGlow = Color{ 96, 165, 250, 160 };
+            sOutline = Color{ 29, 78, 137, 255 };
+            break;
+        default: // зелёный
+            sColor = Color{ 34, 197, 94, 255 };
+            sGlow = Color{ 74, 222, 128, 160 };
+            sOutline = Color{ 20, 83, 45, 255 };
+            break;
     }
     
-    // Чёткая обводка (внешний контур)
-    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx + 1, ry + 1, Color{ 0, 0, 0, 180 });
-    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx, ry, sOutline);
-    // Основное тело
-    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 2, ry - 2, sColor);
-    // Внутренний градиент
-    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 4, ry - 4, sMid);
-    // Желеобразное свечение
-    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 5, ry - 5, ColorAlpha(sGlow, 0.5f));
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx + 2, ry + 2, sOutline);
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx, ry, sColor);
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 3, ry - 2, ColorAlpha(sGlow, 0.45f));
     
-    // Большой глянцевый блик (свет сверху-слева)
-    DrawEllipse((int)slimePos.x - rx * 0.28f, (int)slimePos.y - ry * 0.35f, rx * 0.28f, ry * 0.2f, Color{ 255, 255, 255, 220 });
-    // Маленький дополнительный блик
-    DrawEllipse((int)slimePos.x + rx * 0.15f, (int)slimePos.y - ry * 0.15f, rx * 0.1f, ry * 0.08f, Color{ 255, 255, 255, 140 });
+    // Блики
+    DrawEllipse((int)slimePos.x - rx * 0.3f, (int)slimePos.y - ry * 0.3f, rx * 0.22f, ry * 0.18f, Color{ 255, 255, 255, 200 });
     
-    // Направление взгляда
-    float eyeShiftX = 0.0f;
-    Vector2 dirVec = { slime.targetPosition.x - slime.position.x, slime.targetPosition.y - slime.position.y };
-    float d = sqrtf(dirVec.x * dirVec.x + dirVec.y * dirVec.y);
-    if (d > 4.0f) {
-        eyeShiftX = (dirVec.x / d) * 2.0f;
+    // Глаза
+    DrawCircle((int)slimePos.x - 8, (int)slimePos.y - 3, 5, WHITE);
+    DrawCircle((int)slimePos.x + 8, (int)slimePos.y - 3, 5, WHITE);
+    DrawCircle((int)slimePos.x - 8, (int)slimePos.y - 3, 2, bgDark);
+    DrawCircle((int)slimePos.x + 8, (int)slimePos.y - 3, 2, bgDark);
+    
+    // Частицы
+    if (rand() % 100 < 8) {
+        SpawnParticle(slime.position, { 0, 0 }, ColorAlpha(sGlow, 160), 3 + rand() % 3, 0.6f + (rand() % 5) / 10.f);
     }
-    
-    Vector2 leftEye = { slimePos.x - 5 + eyeShiftX, slimePos.y - 1 };
-    Vector2 rightEye = { slimePos.x + 5 + eyeShiftX, slimePos.y - 1 };
-    
-    // Белки глаз с чёткой обводкой
-    DrawCircleV(leftEye, 3.0f, Color{ 0, 0, 0, 200 });
-    DrawCircleV(rightEye, 3.0f, Color{ 0, 0, 0, 200 });
-    DrawCircleV(leftEye, 2.5f, Color{ 255, 255, 255, 255 });
-    DrawCircleV(rightEye, 2.5f, Color{ 255, 255, 255, 255 });
-    // Зрачки
-    DrawCircleV(leftEye, 1.2f, bgDark);
-    DrawCircleV(rightEye, 1.2f, bgDark);
-    // Блики на глазах
-    DrawCircleV(Vector2{ leftEye.x - 0.5f, leftEye.y - 0.8f }, 0.6f, Color{ 255, 255, 255, 230 });
-    DrawCircleV(Vector2{ rightEye.x - 0.5f, rightEye.y - 0.8f }, 0.6f, Color{ 255, 255, 255, 230 });
 }

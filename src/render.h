@@ -30,5 +30,8 @@ void DrawMapItem(const MapItem& item);
 // Отрисовка слизня
 void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bgDark);
 
+// Частицы
+void SpawnParticle(Vector2 position, Vector2 velocity, Color color, float size, float lifetime);
+
 // Вспомогательная функция отрисовки текстуры из центра
 void DrawTextureCentered(Texture2D tex, Vector2 position, float scale, float rotation = 0.0f);

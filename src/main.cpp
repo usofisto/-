@@ -777,46 +777,122 @@ int main() {
             }
 
             // Отрисовка инвентаря
-            if (showInventory && state == STATE_2D_WORLD) {
-                DrawRectangle(0, 0, windowWidth, windowHeight, ColorAlpha(bgDark, 0.8f));
+if (showInventory && state == STATE_2D_WORLD) {
+                // Полноэкранный инвентарь в стиле Rust
+                DrawRectangle(0, 0, windowWidth, windowHeight, ColorAlpha(Color{ 10, 10, 10, 240 }, 0.95f));
                 
-                Rectangle invRect = { windowWidth/2.0f - 250, windowHeight/2.0f - 200, 500, 400 };
-                DrawRectangleRounded(invRect, 0.1f, 4, bgPanel);
-                DrawRectangleRoundedLines(invRect, 0.1f, 4, 2.0f, btnNormal);
+                // Основная панель инвентаря (как в Rust - по центру)
+                Rectangle invRect = { windowWidth/2.0f - 300, windowHeight/2.0f - 250, 600, 500 };
+                DrawRectangleRounded(invRect, 0.02f, 4, Color{ 35, 35, 40, 255 });
+                DrawRectangleRoundedLines(invRect, 0.02f, 4, 2.0f, Color{ 60, 60, 65, 255 });
                 
-                DrawTextEx(font, "ИНВЕНТАРЬ", Vector2{ invRect.x + 20, invRect.y + 20 }, 24, 1.0f, textWhite);
-                DrawLine(invRect.x + 20, invRect.y + 55, invRect.x + invRect.width - 20, invRect.y + 55, Color{ 48, 54, 68, 255 });
+                // Заголовок
+                DrawTextEx(font, "ИНВЕНТАРЬ", Vector2{ invRect.x + 20, invRect.y + 15 }, 20, 1.0f, Color{ 200, 200, 200, 255 });
+                DrawLine(invRect.x + 15, invRect.y + 45, invRect.x + invRect.width - 15, invRect.y + 45, Color{ 60, 60, 65, 255 });
                 
+                // Сетка слотов (как в Rust - 5x4)
+                int slotSize = 70;
+                int slotPadding = 8;
+                int slotsX = 5;
+                int slotsY = 4;
+                float gridStartX = invRect.x + 30;
+                float gridStartY = invRect.y + 60;
+                
+                // Подсчитываем количество травы
                 int herbCount = 0;
+                int goldCount = 0;
                 for (auto item : player.inventory) {
                     if (item == ITEM_HERB) herbCount++;
+                    if (item == ITEM_GOLDFLOWER) goldCount++;
                 }
                 
-                DrawTextEx(font, "Лечебная трава:", Vector2{ invRect.x + 40, invRect.y + 80 }, 20, 1.0f, textWhite);
-                std::stringstream ssHC; ssHC << "Количество: " << herbCount;
-                DrawTextEx(font, ssHC.str().c_str(), Vector2{ invRect.x + 40, invRect.y + 110 }, 16, 1.0f, textGray);
-                
-                if (herbCount > 0) {
-                    if (DrawButton(font, Rectangle{ invRect.x + 300, invRect.y + 80, 150, 45 }, "Применить", Color{ 16, 185, 129, 255 }, Color{ 52, 211, 153, 255 }, Color{ 4, 120, 87, 255 }, textWhite)) {
-                        if (player.health < player.maxHealth) {
-                            int healAmount = 20;
-                            player.health = std::min(player.maxHealth, player.health + healAmount);
+                // Рисуем сетку слотов
+                for (int y = 0; y < slotsY; y++) {
+                    for (int x = 0; x < slotsX; x++) {
+                        float slotX = gridStartX + x * (slotSize + slotPadding);
+                        float slotY = gridStartY + y * (slotSize + slotPadding);
+                        Rectangle slotRect = { slotX, slotY, (float)slotSize, (float)slotSize };
+                        
+                        // Фон слота
+                        DrawRectangleRounded(slotRect, 0.05f, 4, Color{ 50, 50, 55, 255 });
+                        DrawRectangleRoundedLines(slotRect, 0.05f, 4, 1.0f, Color{ 70, 70, 75, 255 });
+                        
+                        // Определяем предмет в слоте
+                        int slotIndex = y * slotsX + x;
+                        ItemType itemType = ITEM_NONE;
+                        int itemCount = 0;
+                        
+                        if (slotIndex < herbCount) {
+                            itemType = ITEM_HERB;
+                            itemCount = herbCount;
+                        } else if (slotIndex < herbCount + goldCount) {
+                            itemType = ITEM_GOLDFLOWER;
+                            itemCount = goldCount;
+                        }
+                        
+                        // Отрисовка предмета в слоте
+                        if (itemType != ITEM_NONE) {
+                            Vector2 itemCenter = { slotX + slotSize/2.0f, slotY + slotSize/2.0f };
                             
-                            auto it = std::find(player.inventory.begin(), player.inventory.end(), ITEM_HERB);
-                            if (it != player.inventory.end()) player.inventory.erase(it);
+                            if (itemType == ITEM_HERB) {
+                                // Лечебная трава - крестик
+                                DrawCircleV(itemCenter, 18, Color{ 34, 197, 94, 80 });
+                                DrawCircleV(itemCenter, 12, Color{ 34, 197, 94, 200 });
+                                DrawRectangle(itemCenter.x - 1.5f, itemCenter.y - 8, 3, 16, Color{ 255, 255, 255, 220 });
+                                DrawRectangle(itemCenter.x - 8, itemCenter.y - 1.5f, 16, 3, Color{ 255, 255, 255, 220 });
+                            } else if (itemType == ITEM_GOLDFLOWER) {
+                                // Золотой цветок
+                                DrawCircleV(itemCenter, 18, Color{ 245, 158, 11, 80 });
+                                DrawCircleV(itemCenter, 12, Color{ 253, 224, 71, 200 });
+                                DrawCircle(itemCenter.x, itemCenter.y, 4, Color{ 255, 255, 255, 180 });
+                            }
                             
-                            AddLogMessage("Сжевал траву, полегчало.", miniLog);
-                        } else {
-                            AddLogMessage("Я и так здоров, зачем переводить траву?", miniLog);
+                            // Количество в правом нижнем углу
+                            if (itemCount > 1) {
+                                std::stringstream ssCount;
+                                ssCount << "x" << itemCount;
+                                DrawTextEx(font, ssCount.str().c_str(), Vector2{ slotX + slotSize - 25, slotY + slotSize - 18 }, 12, 1.0f, Color{ 255, 255, 255, 255 });
+                            }
                         }
                     }
-                } else {
-                    DrawButton(font, Rectangle{ invRect.x + 300, invRect.y + 80, 150, 45 }, "Нет", Color{ 71, 85, 105, 255 }, Color{ 71, 85, 105, 255 }, Color{ 71, 85, 105, 255 }, textGray);
                 }
                 
-                if (DrawButton(font, Rectangle{ invRect.x + invRect.width/2.0f - 100, invRect.y + 330, 200, 45 }, "Закрыть", btnNormal, btnHover, btnClick, textWhite)) {
+                // Правая панель - информация о выбранном предмете
+                Rectangle infoRect = { invRect.x + invRect.width - 180, invRect.y + 60, 150, 380 };
+                DrawRectangleRounded(infoRect, 0.05f, 4, Color{ 45, 45, 50, 255 });
+                DrawRectangleRoundedLines(infoRect, 0.05f, 4, 1.0f, Color{ 65, 65, 70, 255 });
+                
+                DrawTextEx(font, "ПРЕДМЕТЫ", Vector2{ infoRect.x + 10, infoRect.y + 10 }, 14, 1.0f, Color{ 180, 180, 180, 255 });
+                
+                // Кнопки действий
+                float btnY = infoRect.y + 40;
+                if (herbCount > 0) {
+                    if (DrawButton(font, Rectangle{ infoRect.x + 10, btnY, 130, 35 }, "Использовать", Color{ 16, 185, 129, 255 }, Color{ 52, 211, 153, 255 }, Color{ 4, 120, 87, 255 }, Color{ 255, 255, 255, 255 })) {
+                        if (player.health < player.maxHealth) {
+                            int healAmount = 25;
+                            player.health = std::min(player.maxHealth, player.health + healAmount);
+                            auto it = std::find(player.inventory.begin(), player.inventory.end(), ITEM_HERB);
+                            if (it != player.inventory.end()) player.inventory.erase(it);
+                            AddLogMessage("Сжевал траву, восстановил " + std::to_string(healAmount) + " HP", miniLog);
+                        } else {
+                            AddLogMessage("Здоровье и так полное", miniLog);
+                        }
+                    }
+                    btnY += 45;
+                }
+                
+                if (goldCount > 0) {
+                    DrawTextEx(font, ("Золото: " + std::to_string(goldCount)).c_str(), Vector2{ infoRect.x + 10, btnY }, 14, 1.0f, Color{ 245, 158, 11, 255 });
+                    btnY += 30;
+                }
+                
+                // Кнопка закрытия
+                if (DrawButton(font, Rectangle{ invRect.x + invRect.width/2.0f - 75, invRect.y + invRect.height - 55, 150, 40 }, "Закрыть [I]", Color{ 71, 85, 105, 255 }, Color{ 100, 116, 139, 255 }, Color{ 51, 65, 85, 255 }, Color{ 255, 255, 255, 255 })) {
                     showInventory = false;
                 }
+                
+                // Подсказка внизу
+                DrawTextEx(font, "Нажмите [I] или [ESC] чтобы закрыть", Vector2{ invRect.x + invRect.width/2.0f - 130, invRect.y + invRect.height - 20 }, 12, 1.0f, Color{ 120, 120, 120, 255 });
             }
         }
         EndDrawing();

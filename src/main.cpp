@@ -782,7 +782,11 @@ int main() {
                     std::string grassKey = "grass_" + std::to_string(grassIdx);
                     Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
                     if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass"); // фоллбэк
-                    if (grassTex.id != 0) DrawTexture(grassTex, tx*grassTex.width, ty*grassTex.height, WHITE);
+                    if (grassTex.id != 0) {
+                        // Масштабируем текстуру под размер тайла 100x100
+                        float scale = 100.0f / grassTex.width;
+                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, scale, WHITE);
+                    }
                     else { DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); DrawRectangleLines(tx*100,ty*100,100,100,Color{20,85,40,30}); }
                 }
 
@@ -869,7 +873,7 @@ int main() {
                     if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
 
                     if (treeTex.id != 0) {
-                        float scale = 0.5f;
+                        float scale = 0.35f; // Уменьшил масштаб чтобы не перекрывались
                         float tw = treeTex.width * scale;
                         float th = treeTex.height * scale;
                         DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
@@ -901,7 +905,7 @@ int main() {
                     if (r.shakeTimer > 0) offX = sinf(r.shakeTimer * 40) * 2;
 
                     if (rockTex.id != 0) {
-                        float scale = 0.5f;
+                        float scale = 0.4f; // Уменьшил масштаб камней
                         float rw = rockTex.width * scale;
                         float rh = rockTex.height * scale;
                         DrawTextureEx(rockTex, {r.position.x - rw/2 + offX, r.position.y - rh/2}, 0, scale, WHITE);

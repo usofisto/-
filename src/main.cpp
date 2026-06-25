@@ -760,6 +760,9 @@ int main() {
             if (state==STATE_2D_WORLD) {
                 BeginMode2D(camera);
 
+                // Сначала рисуем зелёный фон для всего мира
+                DrawRectangle(0, 0, 2000, 2000, Color{34, 85, 44, 255});
+                
                 // Трава (уникальные чанки)
                 for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
                     // Используем уникальный чанк травы для каждого тайла
@@ -810,7 +813,7 @@ int main() {
                         DrawCircle(campfirePos.x, campfirePos.y-10, glowR, Color{255,180,50,25});
                         DrawCircle(campfirePos.x, campfirePos.y-10, glowR*0.6f, Color{255,200,80,35});
                     }
-                    DrawTextureEx(fireTex, {campfirePos.x - 32, campfirePos.y - 32}, 0, 1.0f, WHITE);
+                    DrawTextureEx(fireTex, {campfirePos.x - 16, campfirePos.y - 16}, 0, 0.5f, WHITE); // Уменьшил костёр
                 } else {
                     // Фоллбэк процедурный
                     DrawCampfire(campfirePos, framesCounter);
@@ -858,7 +861,7 @@ int main() {
                     if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
 
                     if (treeTex.id != 0) {
-                        float scale = 0.35f; // Уменьшил масштаб чтобы не перекрывались
+                        float scale = 0.25f; // Ещё меньше чтобы не перекрывались
                         float tw = treeTex.width * scale;
                         float th = treeTex.height * scale;
                         DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
@@ -890,7 +893,7 @@ int main() {
                     if (r.shakeTimer > 0) offX = sinf(r.shakeTimer * 40) * 2;
 
                     if (rockTex.id != 0) {
-                        float scale = 0.4f; // Уменьшил масштаб камней
+                        float scale = 0.3f; // Ещё меньше камни
                         float rw = rockTex.width * scale;
                         float rh = rockTex.height * scale;
                         DrawTextureEx(rockTex, {r.position.x - rw/2 + offX, r.position.y - rh/2}, 0, scale, WHITE);

@@ -34,6 +34,7 @@ int main() {
     initBiomeRandom();
     InitParticles();
     
+    // Загружаем текстуры из папки assets (PNG файлы)
     ResourceManager::Get().LoadTex("grass", "assets/grass.png");
     ResourceManager::Get().LoadTex("player", "assets/player.png");
     ResourceManager::Get().LoadTex("slime", "assets/slime.png");

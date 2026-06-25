@@ -14,20 +14,36 @@ void DrawTextureCentered(Texture2D tex, Vector2 position, float scale, float rot
 void DrawPlayerAvatar(const std::string& className, Vector2 position, float radius, Vector2 facing, bool isMoving, int framesCounter, Color bgDark) {
     Texture2D tex = ResourceManager::Get().GetTex("player");
     if (tex.id != 0) {
-        // Простая покачивающаяся анимация спрайта
-        float bobbing = isMoving ? sinf(framesCounter * 0.25f) * 2.0f : 0.0f;
+        // === АНИМАЦИЯ ПЕРСОНАЖА ===
+        float bobbing = 0.0f;
+        float rotation = 0.0f;
+        float scale = 1.0f;
+        
+        if (isMoving) {
+            // При ходьбе: покачивание + лёгкое покачивание корпуса
+            bobbing = sinf(framesCounter * 0.3f) * 3.0f;
+            rotation = sinf(framesCounter * 0.2f) * 3.0f; // Покачивание корпуса
+        } else {
+            // В покое: эффект "дыхания" - лёгкая пульсация
+            bobbing = sinf(framesCounter * 0.08f) * 1.0f;
+            scale = 1.0f + sinf(framesCounter * 0.1f) * 0.02f; // Микро-пульсация
+        }
+        
         Vector2 renderPos = { position.x, position.y + bobbing };
         
-        // Тень под спрайтом
-        DrawEllipse(position.x, position.y + 16, 12, 5, Color{ 0, 0, 0, 120 });
+        // Тень под спрайтом (пульсирует при движении)
+        float shadowSize = isMoving ? 12.0f + sinf(framesCounter * 0.3f) * 2.0f : 12.0f;
+        DrawEllipse(position.x, position.y + 16, shadowSize, 5, Color{ 0, 0, 0, 120 });
         
         // Флип спрайта в зависимости от направления
         Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
         if (facing.x < 0) source.width = -source.width;
         
-        Rectangle dest = { renderPos.x, renderPos.y, 48.0f, 48.0f }; // масштабируем до 48x48
-        Vector2 origin = { 24.0f, 24.0f };
-        DrawTexturePro(tex, source, dest, origin, 0.0f, WHITE);
+        // Масштабируем с учётом анимации
+        float size = 48.0f * scale;
+        Rectangle dest = { renderPos.x, renderPos.y, size, size };
+        Vector2 origin = { size / 2.0f, size / 2.0f };
+        DrawTexturePro(tex, source, dest, origin, rotation, WHITE);
         return;
     }
     
@@ -218,15 +234,19 @@ void DrawTree(Vector2 position, float radius) {
         Color{ 55, 33, 18, 255 }
     );
 
-    // Крона: многослойная с чётким контуром
+    // Крона: более естественная форма из нескольких кругов
     // Тень кроны (самый нижний слой)
-    DrawCircle(position.x, position.y - 10, radius + 6, Color{ 14, 60, 32, 255 });
+    DrawCircle(position.x + 3, position.y - 8, radius + 6, Color{ 14, 60, 32, 255 });
+    DrawCircle(position.x - 5, position.y - 12, radius + 5, Color{ 14, 60, 32, 255 });
+    
     // Тёмный контур кроны
     DrawCircle(position.x, position.y - 13, radius + 4, Color{ 20, 83, 45, 255 });
-    DrawCircle(position.x, position.y - 13, radius + 2, Color{ 22, 101, 52, 255 });
+    DrawCircle(position.x - 4, position.y - 15, radius + 3, Color{ 22, 101, 52, 255 });
     
-    // Основная масса листвы
+    // Основная масса листвы - несколько перекрывающихся кругов
     DrawCircle(position.x, position.y - 14, radius, Color{ 22, 163, 74, 255 });
+    DrawCircle(position.x - 6, position.y - 16, radius - 2, Color{ 34, 197, 94, 255 });
+    DrawCircle(position.x + 5, position.y - 12, radius - 3, Color{ 21, 128, 61, 255 });
     
     // Боковые кластеры для объёма
     DrawCircle(position.x - 8, position.y - 16, radius - 3, Color{ 34, 197, 94, 255 });
@@ -236,6 +256,7 @@ void DrawTree(Vector2 position, float radius) {
     // Контрастные блики (солнечный свет)
     DrawCircle(position.x - 10, position.y - 22, 3.0f, Color{ 187, 247, 208, 230 });
     DrawCircle(position.x - 5, position.y - 18, 2.0f, Color{ 200, 255, 220, 180 });
+    DrawCircle(position.x + 8, position.y - 14, 2.5f, Color{ 187, 247, 208, 180 });
     
     // Чёткий внешний контур кроны (обводка)
     DrawCircleLines(position.x, position.y - 13, radius + 4, Color{ 14, 60, 32, 200 });
@@ -291,22 +312,31 @@ void DrawTent(Vector2 position) {
     );
 }
 
-// Отрисовка озера (воды) на карте
+// Отрисовка озера (воды) на карте - естественная форма
 void DrawWaterPond(Vector2 position, float radius, int framesCounter) {
-    DrawCircleV(position, radius, Color{ 30, 58, 138, 255 }); // Глубокий синий контур
-    DrawCircleV(position, radius - 4.0f, Color{ 29, 78, 216, 255 }); // Средний слой
+    // Основная форма озера - несколько перекрывающихся эллипсов для естественности
+    DrawEllipse((int)position.x, (int)position.y, radius, radius * 0.85f, Color{ 30, 58, 138, 255 });
+    DrawEllipse((int)position.x - 15, (int)position.y + 10, radius * 0.7f, radius * 0.6f, Color{ 29, 78, 216, 255 });
+    DrawEllipse((int)position.x + 20, (int)position.y - 5, radius * 0.6f, radius * 0.5f, Color{ 37, 99, 235, 255 });
     
-    float rippleRadius1 = (float)((framesCounter % 200) * radius / 200.0f);
-    float rippleRadius2 = (float)(((framesCounter + 100) % 200) * radius / 200.0f);
-    
-    if (rippleRadius1 > 4.0f && rippleRadius1 < (radius - 5.0f)) {
-        DrawCircleLines(position.x, position.y, rippleRadius1, ColorAlpha(Color{ 96, 165, 250, 255 }, 0.7f * (1.0f - rippleRadius1/radius)));
+    // Волны на поверхности
+    float waveTime = framesCounter * 0.03f;
+    for (int i = 0; i < 3; i++) {
+        float waveOffset = sinf(waveTime + i * 2.0f) * 8.0f;
+        float waveY = position.y - 20 + i * 15 + waveOffset;
+        DrawEllipse((int)position.x, (int)waveY, radius * 0.4f, 3, Color{ 147, 197, 253, 40 + i * 15 });
     }
-    if (rippleRadius2 > 4.0f && rippleRadius2 < (radius - 5.0f)) {
-        DrawCircleLines(position.x, position.y, rippleRadius2, ColorAlpha(Color{ 96, 165, 250, 255 }, 0.7f * (1.0f - rippleRadius2/radius)));
-    }
     
-    DrawEllipse((int)position.x - 30, (int)position.y - 40, 25, 8, Color{ 147, 197, 253, 90 });
+    // Блики на воде
+    float shimmer = sinf(framesCounter * 0.05f) * 0.3f + 0.7f;
+    DrawEllipse((int)position.x - 25, (int)position.y - 30, 20, 6, ColorAlpha(Color{ 191, 219, 254, 255 }, shimmer * 0.6f));
+    DrawEllipse((int)position.x + 15, (int)position.y - 20, 12, 4, ColorAlpha(Color{ 191, 219, 254, 255 }, shimmer * 0.4f));
+    
+    // Камыш у берега
+    DrawLineEx(Vector2{ position.x - radius + 10, position.y + 20 }, Vector2{ position.x - radius + 8, position.y - 15 }, 2.0f, Color{ 34, 197, 94, 180 });
+    DrawLineEx(Vector2{ position.x + radius - 15, position.y + 25 }, Vector2{ position.x + radius - 12, position.y - 10 }, 2.0f, Color{ 34, 197, 94, 180 });
+    DrawCircleV(Vector2{ position.x - radius + 8, position.y - 15 }, 3, Color{ 132, 204, 22, 200 });
+    DrawCircleV(Vector2{ position.x + radius - 12, position.y - 10 }, 3, Color{ 132, 204, 22, 200 });
 }
 
 // Отрисовка каменных стен руин
@@ -349,20 +379,28 @@ void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bg
     
     Texture2D tex = ResourceManager::Get().GetTex("slime");
     if (tex.id != 0) {
+        // === АНИМАЦИЯ СЛИЗНЯ ===
         float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
+        float squish = sinf(framesCounter * 0.16f + slime.id + 0.5f) * 0.15f; // Деформация тела
         Vector2 renderPos = { slime.position.x, slime.position.y + bounce * 0.4f };
         
-        DrawEllipse(slime.position.x, slime.position.y + 16, 14, 5, Color{ 0, 0, 0, 110 });
+        // Тень с деформацией
+        float shadowSquish = 1.0f + squish * 0.5f;
+        DrawEllipse(slime.position.x, slime.position.y + 16, 14 * shadowSquish, 5, Color{ 0, 0, 0, 110 });
         
         Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
-        // Если движется влево, флипаем
+        // Флип в зависимости от направления
         if (slime.targetPosition.x < slime.position.x) source.width = -source.width;
         
-        Rectangle dest = { renderPos.x, renderPos.y, 48.0f, 48.0f };
-        Vector2 origin = { 24.0f, 24.0f };
+        // Масштаб с деформацией (сплющивается при приземлении)
+        float scaleX = 48.0f * (1.0f + squish);
+        float scaleY = 48.0f * (1.0f - squish);
+        Rectangle dest = { renderPos.x, renderPos.y, scaleX, scaleY };
+        Vector2 origin = { scaleX / 2.0f, scaleY / 2.0f };
         
+        // Цвет зависит от скорости
         Color tint = WHITE;
-        if (slime.speed > 60.0f) tint = Color{ 255, 150, 150, 255 }; // Красная слизь
+        if (slime.speed > 60.0f) tint = Color{ 255, 150, 150, 255 };
         
         DrawTexturePro(tex, source, dest, origin, 0.0f, tint);
         return;

@@ -34,6 +34,7 @@ const char* GetItemName(ItemType t) {
         case ITEM_GOLDFLOWER: return "Золотоцвет";
         case ITEM_APPLE: return "Яблоко";
         case ITEM_BREAD: return "Хлеб";
+        case ITEM_TORCH: return "Факел";
         default: return "?";
     }
 }
@@ -50,6 +51,7 @@ Color GetItemColor(ItemType t) {
         case ITEM_GOLDFLOWER: return Color{253, 224, 71, 255};
         case ITEM_APPLE: return Color{220, 50, 50, 255};
         case ITEM_BREAD: return Color{210, 170, 90, 255};
+        case ITEM_TORCH: return Color{245, 158, 11, 255};
         default: return Color{180, 180, 180, 255};
     }
 }
@@ -89,6 +91,11 @@ void DrawItemIcon(Vector2 center, ItemType t, float size) {
             DrawCircleV(center, size*0.4f, Color{245,158,11,60});
             DrawCircleV(center, size*0.25f, c);
             DrawCircle(center.x, center.y, size*0.1f, Color{255,255,255,200});
+            break;
+        case ITEM_TORCH:
+            DrawRectangle(center.x - 1.5f, center.y - size*0.1f, 3, size*0.6f, Color{139,90,43,255});
+            DrawCircle(center.x, center.y - size*0.35f, size*0.2f, Color{245,158,11,255});
+            DrawCircle(center.x, center.y - size*0.4f, size*0.12f, Color{255,200,50,200});
             break;
         default:
             DrawRectangle(center.x - size*0.3f, center.y - size*0.3f, size*0.6f, size*0.6f, c);
@@ -431,6 +438,10 @@ int main() {
                         Vector2 tip = {playerPos.x+(playerFacing.x<0?-12:12), playerPos.y-12};
                         SpawnParticle(tip, {(float)(rand()%30-15),(float)(rand()%30-15)}, Color{253,224,71,255}, 2.0f, 0.4f+(rand()%4)/10.0f);
                     }
+                    // Частицы пыли при ходьбе
+                    if (rand()%100<20) {
+                        SpawnParticle({playerPos.x+(float)(rand()%10-5), playerPos.y+10}, {(float)(rand()%16-8),(float)(-rand()%8)}, Color{180,170,150,180}, 2.0f+(rand()%2), 0.3f+(rand()%3)/10.0f);
+                    }
                 }
 
                 // Камера следит за игроком
@@ -754,6 +765,13 @@ int main() {
                 std::string fireKey = "campfire_" + std::to_string(fireFrame);
                 Texture2D fireTex = ResourceManager::Get().GetTex(fireKey.c_str());
                 if (fireTex.id != 0) {
+                    // Свечение костра ночью
+                    if (dayNightCycle.currentPhase==DAY_NIGHT || dayNightCycle.currentPhase==DAY_EVENING) {
+                        float glowPulse=sinf(framesCounter*0.1f)*0.15f+0.85f;
+                        float glowR=80*glowPulse;
+                        DrawCircle(campfirePos.x, campfirePos.y-10, glowR, Color{255,180,50,25});
+                        DrawCircle(campfirePos.x, campfirePos.y-10, glowR*0.6f, Color{255,200,80,35});
+                    }
                     DrawTextureEx(fireTex, {campfirePos.x - 32, campfirePos.y - 32}, 0, 1.0f, WHITE);
                 } else {
                     // Фоллбэк процедурный
@@ -877,8 +895,17 @@ int main() {
                     float a=(dayNightCycle.timeOfDay-18)/3;
                     DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,(unsigned char)(a*120)});
                 }
-                else if (dayNightCycle.currentPhase==DAY_NIGHT)
+                else if (dayNightCycle.currentPhase==DAY_NIGHT) {
                     DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,120});
+                    // Звёзды ночью
+                    srand(7777);
+                    for (int i=0; i<60; i++) {
+                        int sx=rand()%GetScreenWidth(), sy=rand()%(GetScreenHeight()/2);
+                        float twinkle=sinf(framesCounter*0.05f+i*1.7f)*0.3f+0.7f;
+                        unsigned char a=(unsigned char)(180*twinkle);
+                        DrawCircle(sx,sy,1+(rand()%2),Color{255,255,230,a});
+                    }
+                }
                 else if (dayNightCycle.currentPhase==DAY_MORNING) {
                     float a=1-(dayNightCycle.timeOfDay-6)/6;
                     DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,(unsigned char)(a*80)});
@@ -1188,6 +1215,25 @@ int main() {
                     DrawTextEx(font,ssT.str().c_str(),{580,12},16,1,textWhite);
                     DrawTextEx(font,ph[dayNightCycle.currentPhase],{650,12},14,1,dayNightCycle.currentPhase==DAY_NIGHT?Color{100,149,237,255}:textWhite);
                     DrawTextEx(font,"[WASD] бег  [E] добыча  [I] инв.  [C] крафт  [F11] fullscreen", {300,75}, 13, 1, textGray);
+
+                    // ===== МИНИ-КАРТА =====
+                    float mmSize=120, mmX=GetScreenWidth()-mmSize-15, mmY=10;
+                    float mmScale=mmSize/2000.0f;
+                    DrawRectangle(mmX-2,mmY-2,mmSize+4,mmSize+4,Color{40,40,50,220});
+                    DrawRectangle(mmX,mmY,mmSize,mmSize,Color{30,70,35,200});
+                    // Озеро
+                    DrawCircle(mmX+lakePos.x*mmScale, mmY+lakePos.y*mmScale, lakeRadius*mmScale, Color{40,100,170,180});
+                    // Деревья
+                    for (auto& t:trees) if (t.active) DrawCircle(mmX+t.position.x*mmScale, mmY+t.position.y*mmScale, 2, Color{60,130,60,200});
+                    // Камни
+                    for (auto& r:rocks) if (r.active) DrawCircle(mmX+r.position.x*mmScale, mmY+r.position.y*mmScale, 2, Color{130,130,140,200});
+                    // Слизни
+                    for (auto& s:slimes) if (s.active) DrawCircle(mmX+s.position.x*mmScale, mmY+s.position.y*mmScale, 2, Color{200,50,50,200});
+                    // Лагерь
+                    DrawCircle(mmX+campfirePos.x*mmScale, mmY+campfirePos.y*mmScale, 3, Color{245,158,11,255});
+                    // Игрок
+                    DrawCircle(mmX+playerPos.x*mmScale, mmY+playerPos.y*mmScale, 3, Color{255,255,255,255});
+                    DrawRectangleLines(mmX,mmY,mmSize,mmSize,Color{80,80,90,255});
                 }
             }
         }

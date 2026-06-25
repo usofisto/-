@@ -71,6 +71,33 @@ void CraftingSystem::InitRecipes() {
     r.result = ITEM_STONE_SWORD;
     r.resultAmount = 1;
     recipes.push_back(r);
+
+    // Каменный топор
+    r = CraftingRecipe();
+    r.name = "Каменный топор";
+    r.ingredients = {ITEM_STONE, ITEM_STONE, ITEM_STICK};
+    r.amounts = {2, 0, 1};
+    r.result = ITEM_STONE_AXE;
+    r.resultAmount = 1;
+    recipes.push_back(r);
+
+    // Хлеб (трава + золотоцвет)
+    r = CraftingRecipe();
+    r.name = "Хлеб";
+    r.ingredients = {ITEM_HERB, ITEM_GOLDFLOWER};
+    r.amounts = {2, 1};
+    r.result = ITEM_BREAD;
+    r.resultAmount = 3;
+    recipes.push_back(r);
+
+    // Факел (палка + дерево)
+    r = CraftingRecipe();
+    r.name = "Факел";
+    r.ingredients = {ITEM_STICK, ITEM_WOOD};
+    r.amounts = {1, 1};
+    r.result = ITEM_TORCH;
+    r.resultAmount = 2;
+    recipes.push_back(r);
 }
 
 bool CraftingSystem::CanCraft(const CraftingRecipe& recipe, const std::vector<ItemType>& inventory) {

@@ -29,3 +29,6 @@ void DrawMapItem(const MapItem& item);
 
 // Отрисовка слизня
 void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bgDark);
+
+// Вспомогательная функция отрисовки текстуры из центра
+void DrawTextureCentered(Texture2D tex, Vector2 position, float scale, float rotation = 0.0f);

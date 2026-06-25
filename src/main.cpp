@@ -13,6 +13,7 @@
 #include "particles.h"
 #include "gui.h"
 #include "render.h"
+#include "resource_manager.h"
 
 int main() {
     const int windowWidth = 950;
@@ -32,6 +33,10 @@ int main() {
 
     initBiomeRandom();
     InitParticles();
+    
+    ResourceManager::Get().LoadTex("grass", "assets/grass.png");
+    ResourceManager::Get().LoadTex("player", "assets/player.png");
+    ResourceManager::Get().LoadTex("slime", "assets/slime.png");
 
     GameState state = STATE_WELCOME;
     Player player;
@@ -514,10 +519,15 @@ int main() {
             if (state == STATE_2D_WORLD) {
                 BeginMode2D(camera);
                 
+                Texture2D grassTex = ResourceManager::Get().GetTex("grass");
                 for (int tx = 0; tx < 20; ++tx) {
                     for (int ty = 0; ty < 20; ++ty) {
-                        DrawRectangle(tx * 100, ty * 100, 100, 100, grassTiles[tx][ty]);
-                        DrawRectangleLines(tx * 100, ty * 100, 100, 100, Color{ 20, 85, 40, 30 });
+                        if (grassTex.id != 0) {
+                            DrawTexture(grassTex, tx * grassTex.width, ty * grassTex.height, WHITE);
+                        } else {
+                            DrawRectangle(tx * 100, ty * 100, 100, 100, grassTiles[tx][ty]);
+                            DrawRectangleLines(tx * 100, ty * 100, 100, 100, Color{ 20, 85, 40, 30 });
+                        }
                     }
                 }
                 

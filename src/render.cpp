@@ -1,9 +1,37 @@
 #include "render.h"
+#include "resource_manager.h"
 #include <cmath>
+
+void DrawTextureCentered(Texture2D tex, Vector2 position, float scale, float rotation) {
+    if (tex.id == 0) return;
+    Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+    Rectangle dest = { position.x, position.y, tex.width * scale, tex.height * scale };
+    Vector2 origin = { (tex.width * scale) / 2.0f, (tex.height * scale) / 2.0f };
+    DrawTexturePro(tex, source, dest, origin, rotation, WHITE);
+}
 
 // Рисуем персонажа: направление взгляда, шагающие ноги, экипировка
 void DrawPlayerAvatar(const std::string& className, Vector2 position, float radius, Vector2 facing, bool isMoving, int framesCounter, Color bgDark) {
-    // Фаза анимации движения ног и покачивания туловища
+    Texture2D tex = ResourceManager::Get().GetTex("player");
+    if (tex.id != 0) {
+        // Простая покачивающаяся анимация спрайта
+        float bobbing = isMoving ? sinf(framesCounter * 0.25f) * 2.0f : 0.0f;
+        Vector2 renderPos = { position.x, position.y + bobbing };
+        
+        // Тень под спрайтом
+        DrawEllipse(position.x, position.y + 16, 12, 5, Color{ 0, 0, 0, 120 });
+        
+        // Флип спрайта в зависимости от направления
+        Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+        if (facing.x < 0) source.width = -source.width;
+        
+        Rectangle dest = { renderPos.x, renderPos.y, 48.0f, 48.0f }; // масштабируем до 48x48
+        Vector2 origin = { 24.0f, 24.0f };
+        DrawTexturePro(tex, source, dest, origin, 0.0f, WHITE);
+        return;
+    }
+    
+    // Фаза анимации движения ног и покачивания туловища (Fallback для геометрической отрисовки)
     float bobbingY = 0.0f;
     float footOffset = 0.0f;
     if (isMoving) {
@@ -319,7 +347,28 @@ void DrawMapItem(const MapItem& item) {
 void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bgDark) {
     if (!slime.active) return;
     
-    // Деформация тела (пружинистый прыжок)
+    Texture2D tex = ResourceManager::Get().GetTex("slime");
+    if (tex.id != 0) {
+        float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
+        Vector2 renderPos = { slime.position.x, slime.position.y + bounce * 0.4f };
+        
+        DrawEllipse(slime.position.x, slime.position.y + 16, 14, 5, Color{ 0, 0, 0, 110 });
+        
+        Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
+        // Если движется влево, флипаем
+        if (slime.targetPosition.x < slime.position.x) source.width = -source.width;
+        
+        Rectangle dest = { renderPos.x, renderPos.y, 48.0f, 48.0f };
+        Vector2 origin = { 24.0f, 24.0f };
+        
+        Color tint = WHITE;
+        if (slime.speed > 60.0f) tint = Color{ 255, 150, 150, 255 }; // Красная слизь
+        
+        DrawTexturePro(tex, source, dest, origin, 0.0f, tint);
+        return;
+    }
+    
+    // Деформация тела (пружинистый прыжок) - Fallback
     float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
     float rx = 15.5f + bounce * 0.5f;
     float ry = 12.5f - bounce * 0.5f;

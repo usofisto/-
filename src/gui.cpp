@@ -99,16 +99,37 @@ bool DrawButton(Font font, Rectangle rect, const char* text, Color baseColor, Co
 }
 
 void DrawProgressBar(Rectangle rect, float value, float maxValue, Color barColor, Color bgColor) {
+    // Тень под баром
+    DrawRectangleRounded(Rectangle{rect.x + 2, rect.y + 2, rect.width, rect.height}, 0.3f, 4, Color{0, 0, 0, 150});
+    
+    // Фон бара
     DrawRectangleRounded(rect, 0.3f, 4, bgColor);
+    
     float fillWidth = (value / maxValue) * rect.width;
     if (fillWidth < 0.0f) fillWidth = 0.0f;
     if (fillWidth > rect.width) fillWidth = rect.width;
     
     if (fillWidth > 0.0f) {
         Rectangle fillRect = { rect.x, rect.y, fillWidth, rect.height };
+        // Темный низ, светлый верх для объема
+        Color lightColor = ColorTint(barColor, Color{255, 255, 255, 255});
+        lightColor.r = std::min(255, lightColor.r + 40);
+        lightColor.g = std::min(255, lightColor.g + 40);
+        lightColor.b = std::min(255, lightColor.b + 40);
+        
+        Color darkColor = ColorTint(barColor, Color{150, 150, 150, 255});
+        
+        // Отрисовка градиента вручную для rounded rectangle (эмуляция: рисуем сплошной, потом градиент поверх)
         DrawRectangleRounded(fillRect, 0.3f, 4, barColor);
+        
+        // Внутренний блик сверху
+        Rectangle highlightRect = { rect.x + 1, rect.y + 1, fillWidth - 2, rect.height * 0.3f };
+        DrawRectangleRounded(highlightRect, 0.3f, 4, Color{255, 255, 255, 60});
     }
-    DrawRectangleRoundedLines(rect, 0.3f, 4, 1.5f, Color{ 255, 255, 255, 50 });
+    
+    // Рамка (Border)
+    DrawRectangleRoundedLines(rect, 0.3f, 4, 2.0f, Color{ 30, 30, 30, 255 });
+    DrawRectangleRoundedLines(Rectangle{rect.x-1, rect.y-1, rect.width+2, rect.height+2}, 0.3f, 4, 1.0f, Color{ 80, 80, 80, 100 });
 }
 
 bool DrawClassCard(Font font, Rectangle rect, const char* title, const char* stats, const char* desc, bool selected, Color cardBgColor, Color borderColor) {

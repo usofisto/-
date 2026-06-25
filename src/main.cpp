@@ -160,9 +160,9 @@ int main() {
     }
 
     // Новые текстуры слизней
-    ResourceManager::Get().LoadTex("slime_green", "assets/slime_green.png");
-    ResourceManager::Get().LoadTex("slime_red", "assets/slime_red.png");
-    ResourceManager::Get().LoadTex("slime_blue", "assets/slime_blue.png");
+    ResourceManager::Get().LoadTex("slime_green", "assets/slimes/slime_green.png");
+    ResourceManager::Get().LoadTex("slime_red", "assets/slimes/slime_red.png");
+    ResourceManager::Get().LoadTex("slime_blue", "assets/slimes/slime_blue.png");
 
     // Озеро
     ResourceManager::Get().LoadTex("lake", "assets/lake.png");

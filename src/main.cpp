@@ -14,6 +14,8 @@
 #include "gui.h"
 #include "render.h"
 #include "resource_manager.h"
+#include "menu.h"
+#include "crafting.h"
 
 int main() {
     const int windowWidth = 950;
@@ -39,10 +41,16 @@ int main() {
     ResourceManager::Get().LoadTex("player", "assets/player.png");
     ResourceManager::Get().LoadTex("slime", "assets/slime.png");
 
-    GameState state = STATE_WELCOME;
+    GameState state = STATE_MENU;
     Player player;
     std::string playerNameInput = "";
     int framesCounter = 0;
+    
+    GameMenu gameMenu;
+    CraftingSystem craftingSystem;
+    SurvivalStats survivalStats;
+    DayNightCycle dayNightCycle;
+    bool showCrafting = false;
     
     Color bgDark = Color{ 24, 26, 32, 255 };      // Темный фон сцен
     Color bgPanel = Color{ 34, 38, 48, 255 };     // Панели меню
@@ -212,7 +220,24 @@ int main() {
         framesCounter++;
         
         // --- ЛОГИКА ---
-        if (state == STATE_WELCOME) {
+        if (state == STATE_MENU) {
+            gameMenu.HandleMainMenuInput(font, windowWidth, windowHeight);
+            
+            if (gameMenu.GetCurrentState() == MENU_SINGLEPLAYER) {
+                gameMenu.SetCurrentState(MENU_WORLD_CREATE);
+            }
+            if (gameMenu.GetCurrentState() == MENU_WORLD_CREATE) {
+                gameMenu.HandleWorldCreateInput(font, windowWidth, windowHeight);
+            }
+            if (gameMenu.GetCurrentState() == MENU_SETTINGS) {
+                gameMenu.HandleSettingsInput(font, windowWidth, windowHeight);
+            }
+            if (gameMenu.GetCurrentState() == MENU_PLAYING) {
+                state = STATE_WELCOME;
+                gameMenu.SetCurrentState(MENU_MAIN);
+            }
+        }
+        else if (state == STATE_WELCOME) {
             int key = GetCharPressed();
             while (key > 0) {
                 if ((key >= 32 && key <= 125) || (key >= 0x0400 && key <= 0x04FF)) {
@@ -233,9 +258,36 @@ int main() {
         else if (state == STATE_2D_WORLD) {
             if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) {
                 showInventory = !showInventory;
+                showCrafting = false;
             }
+            if (IsKeyPressed(KEY_C)) {
+                showCrafting = !showCrafting;
+                showInventory = false;
+            }
+            if (IsKeyPressed(KEY_ESCAPE)) {
+                showInventory = false;
+                showCrafting = false;
+            }
+            
+            // Обновление выживания
+            dayNightCycle.Update(dt);
+            survivalStats.hungerTimer -= dt;
+            if (survivalStats.hungerTimer <= 0.0f) {
+                survivalStats.hunger = std::max(0, survivalStats.hunger - 1);
+                survivalStats.hungerTimer = 30.0f;
+            }
+            if (survivalStats.hunger <= 0 && survivalStats.health > 0) {
+                survivalStats.health = std::max(0, survivalStats.health - 1);
+            }
+            if (survivalStats.hunger > 10 && survivalStats.health < survivalStats.maxHealth) {
+                survivalStats.health = std::min(survivalStats.maxHealth, survivalStats.health + 1);
+            }
+            player.health = survivalStats.health;
+            
+            // Крафт: нажал Е рядом с деревом - получил дерево
+            // (добавляем позже интеграцию)
 
-            if (!showInventory) {
+            if (!showInventory && !showCrafting) {
                 Vector2 moveDir = { 0, 0 };
                 if (IsKeyDown(KEY_W) || IsKeyDown(KEY_UP)) moveDir.y -= 1;
                 if (IsKeyDown(KEY_S) || IsKeyDown(KEY_DOWN)) moveDir.y += 1;
@@ -309,11 +361,38 @@ int main() {
                 if (distToTent < 45.0f && player.health < player.maxHealth) {
                     if (IsKeyPressed(KEY_E)) {
                         player.health = player.maxHealth;
+                        survivalStats.health = survivalStats.maxHealth;
                         AddLogMessage("Отлежался в палатке, чувствую себя как новый.", miniLog);
                         floatingTexts.push_back({ "+HP Восстановлено", Vector2{ playerPos.x, playerPos.y - 15.0f }, Color{ 34, 197, 94, 255 }, 1.0f, -45.0f, 1.2f, true });
                         for (int p = 0; p < 12; p++) {
                             float angle = p * (3.14159f * 2.0f / 12.0f);
                             SpawnParticle(playerPos, Vector2{ cosf(angle) * 45.0f, sinf(angle) * 45.0f }, Color{ 74, 222, 128, 255 }, 3.0f, 0.6f);
+                        }
+                    }
+                }
+                
+                // Добыча дерева (нажал Е рядом с деревом)
+                if (IsKeyPressed(KEY_E)) {
+                    for (const auto& obs : obstacles) {
+                        float dist = sqrtf(powf(playerPos.x - obs.position.x, 2) + powf(playerPos.y - obs.position.y, 2));
+                        if (dist < 50.0f) {
+                            int woodAmount = 1 + rand() % 2;
+                            for (int w = 0; w < woodAmount; w++) player.inventory.push_back(ITEM_WOOD);
+                            std::stringstream ssW; ssW << "+" << woodAmount << " Дерево";
+                            floatingTexts.push_back({ ssW.str(), Vector2{ playerPos.x, playerPos.y - 15.0f }, Color{ 139, 90, 43, 255 }, 1.0f, -40.0f, 1.2f, true });
+                            AddLogMessage("Срубил кусок дерева.", miniLog);
+                            break;
+                        }
+                    }
+                    for (const auto& boulder : boulders) {
+                        float dist = sqrtf(powf(playerPos.x - boulder.position.x, 2) + powf(playerPos.y - boulder.position.y, 2));
+                        if (dist < 35.0f) {
+                            int stoneAmount = 1 + rand() % 2;
+                            for (int s = 0; s < stoneAmount; s++) player.inventory.push_back(ITEM_STONE);
+                            std::stringstream ssS; ssS << "+" << stoneAmount << " Камень";
+                            floatingTexts.push_back({ ssS.str(), Vector2{ playerPos.x, playerPos.y - 15.0f }, Color{ 156, 163, 175, 255 }, 1.0f, -40.0f, 1.2f, true });
+                            AddLogMessage("Выбил камень.", miniLog);
+                            break;
                         }
                     }
                 }
@@ -456,7 +535,21 @@ int main() {
         BeginDrawing();
         ClearBackground(bgDark);
 
-        if (state == STATE_WELCOME) {
+        if (state == STATE_MENU) {
+            MenuState menuState = gameMenu.GetCurrentState();
+            if (menuState == MENU_MAIN) {
+                gameMenu.DrawMainMenu(font, windowWidth, windowHeight, framesCounter);
+            } else if (menuState == MENU_SINGLEPLAYER) {
+                gameMenu.DrawWorldCreateMenu(font, windowWidth, windowHeight);
+            } else if (menuState == MENU_WORLD_CREATE) {
+                gameMenu.DrawWorldCreateMenu(font, windowWidth, windowHeight);
+            } else if (menuState == MENU_SETTINGS) {
+                gameMenu.DrawSettingsMenu(font, windowWidth, windowHeight);
+            } else {
+                gameMenu.DrawMainMenu(font, windowWidth, windowHeight, framesCounter);
+            }
+        }
+        else if (state == STATE_WELCOME) {
             // Улучшенный красивый стартовый экран
             DrawRectangleGradientV(0, 0, windowWidth, windowHeight, Color{ 15, 23, 42, 255 }, Color{ 30, 41, 59, 255 });
             
@@ -592,7 +685,82 @@ int main() {
                 DrawRectangleLines(0, 0, 2000, 2000, Color{ 220, 38, 38, 120 });
                 EndMode2D();
                 
-                if (!showInventory) {
+                // Оверлей день/ночь
+                if (dayNightCycle.currentPhase == DAY_EVENING) {
+                    float alpha = (dayNightCycle.timeOfDay - 18.0f) / 3.0f;
+                    DrawRectangle(0, 0, windowWidth, windowHeight, Color{ 10, 10, 30, (unsigned char)(alpha * 120) });
+                } else if (dayNightCycle.currentPhase == DAY_NIGHT) {
+                    DrawRectangle(0, 0, windowWidth, windowHeight, Color{ 10, 10, 30, 120 });
+                } else if (dayNightCycle.currentPhase == DAY_MORNING) {
+                    float alpha = 1.0f - (dayNightCycle.timeOfDay - 6.0f) / 6.0f;
+                    DrawRectangle(0, 0, windowWidth, windowHeight, Color{ 10, 10, 30, (unsigned char)(alpha * 80) });
+                }
+                
+                // Панель крафта
+                if (showCrafting) {
+                    DrawRectangle(0, 0, windowWidth, windowHeight, Color{ 0, 0, 0, 180 });
+                    Rectangle craftRect = { windowWidth/2.0f - 250, 80, 500, 480 };
+                    DrawRectangleRounded(craftRect, 0.02f, 4, Color{ 35, 35, 40, 255 });
+                    DrawRectangleRoundedLines(craftRect, 0.02f, 4, 2.0f, Color{ 60, 60, 65, 255 });
+                    
+                    DrawTextEx(font, "КРАФТ", Vector2{ craftRect.x + 20, craftRect.y + 15 }, 20, 1.0f, Color{ 200, 200, 200, 255 });
+                    DrawLine(craftRect.x + 15, craftRect.y + 45, craftRect.x + craftRect.width - 15, craftRect.y + 45, Color{ 60, 60, 65, 255 });
+                    
+                    // Подсчёт ресурсов
+                    int woodCount = 0, stoneCount = 0, stickCount = 0;
+                    for (const auto& item : player.inventory) {
+                        if (item == ITEM_WOOD) woodCount++;
+                        if (item == ITEM_STONE) stoneCount++;
+                        if (item == ITEM_STICK) stickCount++;
+                    }
+                    
+                    std::stringstream ssInv; ssInv << "Ресурсы: " << woodCount << " дер. | " << stoneCount << " кам. | " << stickCount << " пал.";
+                    DrawTextEx(font, ssInv.str().c_str(), Vector2{ craftRect.x + 20, craftRect.y + 55 }, 14, 1.0f, Color{ 180, 180, 180, 255 });
+                    
+                    // Рецепты
+                    float recipeY = craftRect.y + 85;
+                    auto& recipes = craftingSystem.GetRecipes();
+                    int recipesShown = 0;
+                    for (const auto& recipe : recipes) {
+                        if (recipeY > craftRect.y + craftRect.height - 60) break;
+                        
+                        bool canCraft = craftingSystem.CanCraft(recipe, player.inventory);
+                        Color bgColor = canCraft ? Color{ 45, 55, 45, 255 } : Color{ 55, 45, 45, 255 };
+                        
+                        Rectangle recipeRect = { craftRect.x + 15, recipeY, craftRect.width - 30, 35 };
+                        DrawRectangleRounded(recipeRect, 0.05f, 4, bgColor);
+                        
+                        std::string recipeName = recipe.name + " x" + std::to_string(recipe.resultAmount);
+                        DrawTextEx(font, recipeName.c_str(), Vector2{ recipeRect.x + 10, recipeRect.y + 8 }, 14, 1.0f, Color{ 220, 220, 220, 255 });
+                        
+                        if (canCraft && DrawButton(font, Rectangle{ recipeRect.x + recipeRect.width - 80, recipeRect.y + 3, 70, 28 }, "Крафт", Color{ 16, 185, 129, 255 }, Color{ 52, 211, 153, 255 }, Color{ 4, 120, 87, 255 }, Color{ 255, 255, 255, 255 })) {
+                            // Убираем ингредиенты
+                            for (size_t i = 0; i < recipe.ingredients.size(); i++) {
+                                for (int a = 0; a < recipe.amounts[i]; a++) {
+                                    auto it = std::find(player.inventory.begin(), player.inventory.end(), recipe.ingredients[i]);
+                                    if (it != player.inventory.end()) player.inventory.erase(it);
+                                }
+                            }
+                            // Даём результат
+                            for (int r = 0; r < recipe.resultAmount; r++) {
+                                player.inventory.push_back(recipe.result);
+                            }
+                            AddLogMessage("Скрафтил: " + recipe.name, miniLog);
+                            floatingTexts.push_back({ "+" + recipe.name, Vector2{ playerPos.x, playerPos.y - 15.0f }, Color{ 253, 224, 71, 255 }, 1.0f, -40.0f, 1.2f, true });
+                        }
+                        
+                        recipeY += 42;
+                        recipesShown++;
+                    }
+                    
+                    if (recipesShown == 0) {
+                        DrawTextEx(font, "Нет доступных рецептов", Vector2{ craftRect.x + 20, recipeY }, 14, 1.0f, Color{ 120, 120, 120, 255 });
+                    }
+                    
+                    DrawTextEx(font, "Нажмите [C] чтобы закрыть", Vector2{ craftRect.x + craftRect.width/2.0f - 100, craftRect.y + craftRect.height - 25 }, 12, 1.0f, Color{ 100, 100, 100, 255 });
+                }
+                
+                if (!showInventory && !showCrafting) {
                     int logY = windowHeight - 40;
                     for (int i = (int)miniLog.size() - 1; i >= 0; --i) {
                         float life = miniLog[i].second;
@@ -748,7 +916,10 @@ int main() {
                 std::stringstream ssG; ssG << "Собрано золота: " << player.gold; DrawTextEx(font, ssG.str().c_str(), Vector2{ statsRect.x + 20, statsRect.y + 80 }, 16, 1.0f, Color{ 245, 158, 11, 255 });
                 
                 if (DrawButton(font, Rectangle{ 375, 465, 200, 45 }, "Начать сначала", btnNormal, btnHover, btnClick, textWhite)) {
-                    playerNameInput = ""; state = STATE_WELCOME; showInventory = false; player.inventory.clear();
+                    playerNameInput = ""; state = STATE_MENU; showInventory = false; showCrafting = false; player.inventory.clear();
+                    survivalStats = SurvivalStats();
+                    dayNightCycle = DayNightCycle();
+                    gameMenu.SetCurrentState(MENU_MAIN);
                 }
             }
             
@@ -772,7 +943,22 @@ int main() {
                 DrawTextEx(font, ssGold.str().c_str(), Vector2{ 490, 36 }, 16, 1.0f, Color{ 245, 158, 11, 255 });
                 
                 if (state == STATE_2D_WORLD) {
-                    DrawTextEx(font, "WASD - бег   [E] - отдых   [I] - инвентарь", Vector2{ windowWidth - 400, 36 }, 14, 1.0f, textGray);
+                    DrawTextEx(font, "WASD - бег   [E] - добыча   [I] - инв.   [C] - крафт", Vector2{ windowWidth - 440, 36 }, 14, 1.0f, textGray);
+                    
+                    // Голод и выносливость
+                    DrawTextEx(font, "Голод:", Vector2{ 30, 72 }, 12, 1.0f, textGray);
+                    DrawProgressBar(Rectangle{ 75, 71, 120, 12 }, (float)survivalStats.hunger, (float)survivalStats.maxHunger, Color{ 245, 158, 11, 255 }, Color{ 50, 50, 50, 255 });
+                    
+                    DrawTextEx(font, "Время:", Vector2{ 210, 72 }, 12, 1.0f, textGray);
+                    int hours = (int)dayNightCycle.timeOfDay;
+                    int minutes = (int)((dayNightCycle.timeOfDay - hours) * 60);
+                    std::stringstream ssTime; ssTime << (hours < 10 ? "0" : "") << hours << ":" << (minutes < 10 ? "0" : "") << minutes;
+                    DrawTextEx(font, ssTime.str().c_str(), Vector2{ 260, 72 }, 12, 1.0f, textWhite);
+                    
+                    const char* phaseNames[] = {"Утро", "День", "Вечер", "Ночь"};
+                    DrawTextEx(font, phaseNames[dayNightCycle.currentPhase], Vector2{ 320, 72 }, 12, 1.0f, 
+                        dayNightCycle.currentPhase == DAY_NIGHT ? Color{ 100, 149, 237, 255 } : 
+                        dayNightCycle.currentPhase == DAY_EVENING ? Color{ 253, 186, 73, 255 } : textWhite);
                 }
             }
 

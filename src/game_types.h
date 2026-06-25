@@ -1,72 +1,94 @@
 #pragma once
 #include "raylib.h"
 #include <string>
+#include <vector>
+#include <cmath>
 
 // Игровые состояния
 enum GameState {
-    STATE_WELCOME,         // Экран ввода имени (приветствие)
-    STATE_CLASS_SELECT,    // Экран выбора класса
-    STATE_2D_WORLD,        // Игра: свободное перемещение в 2D мире
-    STATE_MEADOW_SLIME,    // Игра: сцена пошагового боя
-    STATE_GAME_OVER        // Экран конца игры (гибель)
+    STATE_MENU,           // Главное меню
+    STATE_WELCOME,        // Экран ввода имени
+    STATE_CLASS_SELECT,   // Экран выбора класса
+    STATE_2D_WORLD,       // Игра: свободное перемещение в 2D мире
+    STATE_MEADOW_SLIME,   // Сцена пошагового боя
+    STATE_GAME_OVER       // Экран конца игры
 };
 
-// Типы собираемых предметов (и инвентаря)
+// Типы предметов
 enum ItemType {
-    ITEM_NONE,          // Пустой слот
-    ITEM_HERB,          // Лечебная трава (можно применить для лечения)
-    ITEM_GOLDFLOWER     // Золотоцвет (можно обменять или дает золото)
+    ITEM_NONE,
+    ITEM_WOOD, ITEM_STONE, ITEM_COAL, ITEM_IRON, ITEM_GOLD, ITEM_DIAMOND,
+    ITEM_WOOD_PLANK, ITEM_STICK, ITEM_TORCH,
+    ITEM_WOOD_PICKAXE, ITEM_WOOD_AXE, ITEM_WOOD_SWORD,
+    ITEM_STONE_PICKAXE, ITEM_STONE_AXE, ITEM_STONE_SWORD,
+    ITEM_APPLE, ITEM_BREAD, ITEM_MEAT, ITEM_CAKE,
+    ITEM_WHEAT, ITEM_SUGAR, ITEM_EGG,
+    ITEM_HERB, ITEM_GOLDFLOWER, ITEM_MANA_CRYSTAL
 };
 
-// Собираемый предмет на карте
-struct MapItem {
-    Vector2 position;
-    ItemType type;
-    bool active;
-    float respawnTimer;
-};
+struct MapItem { Vector2 position; ItemType type; bool active; float respawnTimer; };
+struct Obstacle { Vector2 position; float radius; };
+struct StoneWall { Rectangle rect; };
 
-// Препятствие (дерево)
-struct Obstacle {
-    Vector2 position;
-    float radius;
-};
-
-// Стена руин
-struct StoneWall {
-    Rectangle rect;
-};
-
-// Слизень на карте
 struct WanderingSlime {
-    Vector2 position;
-    Vector2 targetPosition;
-    float wanderTimer;
-    float speed;
-    int hp;
-    int maxHp;
+    Vector2 position, targetPosition;
+    float wanderTimer, speed;
+    int hp, maxHp;
     bool active;
-    int id; // уникальный идентификатор
+    int id;
 };
 
-// Всплывающий текст
 struct FloatingText {
     std::string text;
     Vector2 position;
     Color color;
-    float alpha;
-    float ySpeed;
-    float lifetime;
+    float alpha, ySpeed, lifetime;
     bool active;
 };
 
-// Структура для эффектов частиц
 struct Particle {
-    Vector2 position;
-    Vector2 velocity;
+    Vector2 position, velocity;
     Color color;
-    float size;
-    float lifetime;
-    float maxLifetime;
+    float size, lifetime, maxLifetime;
     bool active;
+};
+
+struct Item {
+    ItemType type;
+    int amount;
+    Item() : type(ITEM_NONE), amount(0) {}
+    Item(ItemType t, int a) : type(t), amount(a) {}
+};
+
+struct SurvivalStats {
+    int health, maxHealth, hunger, maxHunger;
+    float hungerTimer;
+    SurvivalStats() : health(20), maxHealth(20), hunger(20), maxHunger(20), hungerTimer(30.0f) {}
+};
+
+enum DayPhase { DAY_MORNING, DAY_AFTERNOON, DAY_EVENING, DAY_NIGHT };
+
+struct DayNightCycle {
+    float timeOfDay;
+    DayPhase currentPhase;
+    float daySpeed;
+
+    DayNightCycle() : timeOfDay(8.0f), currentPhase(DAY_MORNING), daySpeed(0.5f) {}
+
+    void Update(float dt) {
+        timeOfDay += dt * daySpeed;
+        if (timeOfDay >= 24.0f) timeOfDay -= 24.0f;
+        if (timeOfDay >= 6.0f && timeOfDay < 12.0f) currentPhase = DAY_MORNING;
+        else if (timeOfDay >= 12.0f && timeOfDay < 18.0f) currentPhase = DAY_AFTERNOON;
+        else if (timeOfDay >= 18.0f && timeOfDay < 21.0f) currentPhase = DAY_EVENING;
+        else currentPhase = DAY_NIGHT;
+    }
+};
+
+struct CraftingRecipe {
+    std::string name;
+    std::vector<ItemType> ingredients;
+    std::vector<int> amounts;
+    ItemType result;
+    int resultAmount;
 };

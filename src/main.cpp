@@ -57,49 +57,34 @@ Color GetItemColor(ItemType t) {
 }
 
 void DrawItemIcon(Vector2 center, ItemType t, float size) {
-    Color c = GetItemColor(t);
+    // Используем PNG текстуры для иконок
+    std::string texKey;
     switch(t) {
-        case ITEM_WOOD: case ITEM_WOOD_PLANK:
-            DrawRectangle(center.x - size*0.3f, center.y - size*0.5f, size*0.6f, size, c);
-            DrawRectangle(center.x - size*0.25f, center.y - size*0.4f, size*0.15f, size*0.8f, Color{160,110,50,255});
-            break;
-        case ITEM_STONE:
-            DrawCircleV(center, size*0.45f, c);
-            DrawCircle(center.x - size*0.1f, center.y - size*0.1f, size*0.15f, Color{180,180,185,255});
-            break;
-        case ITEM_STICK:
-            DrawRectangle(center.x - 1.5f, center.y - size*0.5f, 3, size, c);
-            break;
-        case ITEM_WOOD_PICKAXE: case ITEM_STONE_PICKAXE:
-            DrawRectangle(center.x - 1.5f, center.y - size*0.1f, 3, size*0.6f, Color{139,90,43,255});
-            DrawRectangle(center.x - size*0.3f, center.y - size*0.45f, size*0.6f, 6, c);
-            break;
-        case ITEM_WOOD_SWORD: case ITEM_STONE_SWORD:
-            DrawRectangle(center.x - 1.5f, center.y + size*0.05f, 3, size*0.45f, Color{139,90,43,255});
-            DrawTriangle({center.x, center.y - size*0.45f}, {center.x - 4, center.y - size*0.05f}, {center.x + 4, center.y - size*0.05f}, c);
-            break;
-        case ITEM_WOOD_AXE: case ITEM_STONE_AXE:
-            DrawRectangle(center.x - 1.5f, center.y - size*0.1f, 3, size*0.6f, Color{139,90,43,255});
-            DrawCircle(center.x + 5, center.y - size*0.35f, size*0.2f, c);
-            break;
-        case ITEM_HERB:
-            DrawCircleV(center, size*0.4f, Color{34,197,94,80});
-            DrawCircleV(center, size*0.25f, c);
-            DrawRectangle(center.x - 1.5f, center.y - size*0.3f, 3, size*0.6f, Color{255,255,255,200});
-            break;
-        case ITEM_GOLDFLOWER:
-            DrawCircleV(center, size*0.4f, Color{245,158,11,60});
-            DrawCircleV(center, size*0.25f, c);
-            DrawCircle(center.x, center.y, size*0.1f, Color{255,255,255,200});
-            break;
-        case ITEM_TORCH:
-            DrawRectangle(center.x - 1.5f, center.y - size*0.1f, 3, size*0.6f, Color{139,90,43,255});
-            DrawCircle(center.x, center.y - size*0.35f, size*0.2f, Color{245,158,11,255});
-            DrawCircle(center.x, center.y - size*0.4f, size*0.12f, Color{255,200,50,200});
-            break;
-        default:
-            DrawRectangle(center.x - size*0.3f, center.y - size*0.3f, size*0.6f, size*0.6f, c);
-            break;
+        case ITEM_WOOD: texKey = "wood_item"; break;
+        case ITEM_STONE: texKey = "rock_1"; break;
+        case ITEM_STICK: texKey = "wood_item"; break;
+        case ITEM_WOOD_PICKAXE: case ITEM_STONE_PICKAXE: texKey = "pickaxe"; break;
+        case ITEM_WOOD_SWORD: case ITEM_STONE_SWORD: texKey = "sword"; break;
+        case ITEM_WOOD_AXE: case ITEM_STONE_AXE: texKey = "shovel"; break;
+        case ITEM_HERB: texKey = "herb"; break;
+        case ITEM_GOLDFLOWER: texKey = "goldflower"; break;
+        case ITEM_TORCH: texKey = "campfire_0"; break;
+        case ITEM_BREAD: texKey = "herb"; break;
+        case ITEM_WOOD_PLANK: texKey = "wood_item"; break;
+        default: break;
+    }
+    
+    Texture2D tex = {0};
+    if (!texKey.empty()) tex = ResourceManager::Get().GetTex(texKey.c_str());
+    
+    if (tex.id != 0) {
+        // Рисуем PNG текстуру с правильным масштабом
+        float scale = size / tex.width;
+        DrawTextureEx(tex, {center.x - size/2, center.y - size/2}, 0, scale, WHITE);
+    } else {
+        // Fallback процедурный
+        Color c = GetItemColor(t);
+        DrawRectangle(center.x - size*0.3f, center.y - size*0.3f, size*0.6f, size*0.6f, c);
     }
 }
 

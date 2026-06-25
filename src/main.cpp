@@ -16,7 +16,7 @@
 #include "menu.h"
 #include "crafting.h"
 
-// Имена предметов для отображения
+// ==================== ПРЕДМЕТЫ ====================
 const char* GetItemName(ItemType t) {
     switch(t) {
         case ITEM_WOOD: return "Дерево";
@@ -84,7 +84,6 @@ void DrawItemIcon(Vector2 center, ItemType t, float size) {
             DrawCircleV(center, size*0.4f, Color{34,197,94,80});
             DrawCircleV(center, size*0.25f, c);
             DrawRectangle(center.x - 1.5f, center.y - size*0.3f, 3, size*0.6f, Color{255,255,255,200});
-            DrawRectangle(center.x - size*0.2f, center.y - 1.5f, size*0.4f, 3, Color{255,255,255,200});
             break;
         case ITEM_GOLDFLOWER:
             DrawCircleV(center, size*0.4f, Color{245,158,11,60});
@@ -97,6 +96,7 @@ void DrawItemIcon(Vector2 center, ItemType t, float size) {
     }
 }
 
+// ==================== MAIN ====================
 int main() {
     const int windowWidth = 950;
     const int windowHeight = 650;
@@ -104,6 +104,7 @@ int main() {
     SetTargetFPS(60);
     bool isFullscreen = false;
 
+    // Шрифт с кириллицей
     int codepoints[512];
     for (int i = 0; i < 128; i++) codepoints[i] = 32 + i;
     for (int i = 0; i < 256; i++) codepoints[128 + i] = 0x0400 + i;
@@ -113,10 +114,24 @@ int main() {
     initBiomeRandom();
     InitParticles();
 
+    // ==================== ЗАГРУЗКА ТЕКСТУР ====================
     ResourceManager::Get().LoadTex("grass", "assets/grass.png");
     ResourceManager::Get().LoadTex("player", "assets/player.png");
     ResourceManager::Get().LoadTex("slime", "assets/slime.png");
+    ResourceManager::Get().LoadTex("pickaxe", "assets/pickaxe.png");
+    ResourceManager::Get().LoadTex("shovel", "assets/shovel.png");
+    ResourceManager::Get().LoadTex("sword", "assets/sword.png");
+    ResourceManager::Get().LoadTex("tree", "assets/tree.png");
+    ResourceManager::Get().LoadTex("rock", "assets/rock.png");
+    ResourceManager::Get().LoadTex("campfire_0", "assets/campfire_0.png");
+    ResourceManager::Get().LoadTex("campfire_1", "assets/campfire_1.png");
+    ResourceManager::Get().LoadTex("campfire_2", "assets/campfire_2.png");
+    ResourceManager::Get().LoadTex("campfire_3", "assets/campfire_3.png");
+    ResourceManager::Get().LoadTex("wood_item", "assets/wood_item.png");
+    ResourceManager::Get().LoadTex("herb", "assets/herb.png");
+    ResourceManager::Get().LoadTex("goldflower", "assets/goldflower.png");
 
+    // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
     GameState state = STATE_MENU;
     Player player;
     std::string playerNameInput = "";
@@ -129,36 +144,44 @@ int main() {
     bool showInventory = false;
     bool showCrafting = false;
 
+    // Цвета
     Color bgDark = Color{ 24, 26, 32, 255 };
     Color bgPanel = Color{ 34, 38, 48, 255 };
     Color textWhite = Color{ 243, 244, 246, 255 };
     Color textGray = Color{ 156, 163, 175, 255 };
 
+    // Позиция игрока
     Vector2 playerPos = { 1000.0f, 1000.0f };
     Vector2 playerFacing = { 0.0f, 1.0f };
     float playerSpeed = 190.0f;
     float playerRadius = 12.0f;
 
+    // Камера
     Camera2D camera = { 0 };
     camera.target = playerPos;
     camera.offset = Vector2{ windowWidth / 2.0f, windowHeight / 2.0f };
     camera.rotation = 0.0f;
     camera.zoom = 1.0f;
 
-    std::vector<Obstacle> obstacles;
+    // Мир: деревья, камни, руины, предметы, слизни
+    std::vector<TreeInfo> trees;
+    std::vector<RockInfo> rocks;
     std::vector<StoneWall> ruins;
-    std::vector<Obstacle> boulders;
     std::vector<MapItem> mapItems;
     std::vector<WanderingSlime> slimes;
     std::vector<FloatingText> floatingTexts;
     std::vector<std::pair<std::string, float>> miniLog;
 
+    // Травяные плитки
     Color grassTiles[20][20];
+
+    // Объекты лагеря
     Vector2 campfirePos = { 960.0f, 1000.0f };
     Vector2 tentPos = { 1040.0f, 985.0f };
     Vector2 lakePos = { 400.0f, 400.0f };
     float lakeRadius = 150.0f;
 
+    // Бой
     int activeSlimeIndex = -1;
     int slimeHp = 0, slimeMaxHp = 0;
     std::string slimeType = "Зеленая Слизь";
@@ -169,7 +192,11 @@ int main() {
     float redFlashTimer = 0.0f;
     float slashEffectTimer = 0.0f;
 
-    // Подсчёт предметов в инвентаре
+    // Взмах оружием
+    float weaponSwingTimer = 0.0f;
+    float weaponSwingAngle = 0.0f;
+
+    // ==================== ВСПОМОГАТЕЛЬНЫЕ ЛЯМБДЫ ====================
     auto CountItems = [&](ItemType t) -> int {
         int count = 0;
         for (auto& item : player.inventory) if (item == t) count++;
@@ -181,8 +208,9 @@ int main() {
         }
     };
 
+    // ==================== ГЕНЕРАЦИЯ МИРА ====================
     auto InitWorldEntities = [&]() {
-        obstacles.clear(); ruins.clear(); boulders.clear();
+        trees.clear(); rocks.clear(); ruins.clear();
         mapItems.clear(); slimes.clear(); floatingTexts.clear(); miniLog.clear();
         playerPos = Vector2{ 1000.0f, 1000.0f };
         playerFacing = Vector2{ 0.0f, 1.0f };
@@ -200,9 +228,11 @@ int main() {
                 grassTiles[x][y] = Color{(unsigned char)(22+r),(unsigned char)(95+g),(unsigned char)(44+b),255};
             }
 
+        // Руины
         ruins.push_back({Rectangle{750,1300,150,30}});
         ruins.push_back({Rectangle{1300,700,30,180}});
 
+        // Камни (с HP)
         for (int i = 0; i < 8; ++i) {
             Vector2 pos;
             while (true) {
@@ -211,11 +241,19 @@ int main() {
                 float dl = sqrtf(powf(pos.x-lakePos.x,2)+powf(pos.y-lakePos.y,2));
                 if (dc>250 && dl>(lakeRadius+30)) break;
             }
-            boulders.push_back({pos, 16.0f+(float)(rand()%6)});
+            RockInfo ri;
+            ri.position = pos;
+            ri.radius = 16.0f + (float)(rand()%6);
+            ri.hp = 4; ri.maxHp = 4;
+            ri.active = true;
+            ri.shakeTimer = 0.0f;
+            ri.respawnTimer = 0.0f;
+            rocks.push_back(ri);
         }
 
+        // Деревья (с HP)
         int attempts = 0;
-        while (obstacles.size() < 65 && attempts < 800) {
+        while (trees.size() < 40 && attempts < 800) {
             attempts++;
             Vector2 c = {(float)(50+rand()%1900),(float)(50+rand()%1900)};
             float dc = sqrtf(powf(c.x-1000,2)+powf(c.y-1000,2));
@@ -224,10 +262,20 @@ int main() {
             bool bad = false;
             for (auto& w : ruins) if (CheckCollisionCircleRec(c,25,w.rect)) {bad=true;break;}
             if (bad) continue;
-            for (auto& o : obstacles) if (sqrtf(powf(c.x-o.position.x,2)+powf(c.y-o.position.y,2))<48) {bad=true;break;}
-            if (!bad) obstacles.push_back({c,15.0f});
+            for (auto& t : trees) if (sqrtf(powf(c.x-t.position.x,2)+powf(c.y-t.position.y,2))<55) {bad=true;break;}
+            if (!bad) {
+                TreeInfo ti;
+                ti.position = c;
+                ti.radius = 15.0f;
+                ti.hp = 5; ti.maxHp = 5;
+                ti.active = true;
+                ti.shakeTimer = 0.0f;
+                ti.respawnTimer = 0.0f;
+                trees.push_back(ti);
+            }
         }
 
+        // Предметы на карте (трава, золотоцвет)
         for (int i = 0; i < 15; ++i) {
             Vector2 pos;
             while (true) {
@@ -246,6 +294,7 @@ int main() {
             mapItems.push_back({pos, ITEM_GOLDFLOWER, true, 0.0f});
         }
 
+        // Слизни
         for (int i = 0; i < 7; ++i) {
             Vector2 pos;
             while (true) {
@@ -263,12 +312,12 @@ int main() {
         }
     };
 
-    // === MAIN LOOP ===
+    // ==================== ГЛАВНЫЙ ЦИКЛ ====================
     while (!WindowShouldClose()) {
         float dt = GetFrameTime();
         framesCounter++;
 
-        // F11 fullscreen toggle
+        // ==================== F11 FULLSCREEN ====================
         if (IsKeyPressed(KEY_F11)) {
             isFullscreen = !isFullscreen;
             if (isFullscreen) {
@@ -279,9 +328,11 @@ int main() {
                 ToggleFullscreen();
                 SetWindowSize(windowWidth, windowHeight);
             }
+            // Обновляем offset камеры под новый размер окна
+            camera.offset = Vector2{ GetScreenWidth() / 2.0f, GetScreenHeight() / 2.0f };
         }
 
-        // === ЛОГИКА ===
+        // ==================== ЛОГИКА ====================
         if (state == STATE_MENU) {
             gameMenu.HandleMainMenuInput(font, windowWidth, windowHeight);
             MenuState ms = gameMenu.GetCurrentState();
@@ -311,23 +362,35 @@ int main() {
             }
         }
         else if (state == STATE_2D_WORLD) {
+            // Показ/скрытие инвентаря и крафта
             if (IsKeyPressed(KEY_I) || IsKeyPressed(KEY_TAB)) { showInventory = !showInventory; showCrafting = false; }
             if (IsKeyPressed(KEY_C)) { showCrafting = !showCrafting; showInventory = false; }
             if (IsKeyPressed(KEY_ESCAPE)) { showInventory = false; showCrafting = false; }
 
-            // Выживание
+            // Таймер взмаха оружием
+            if (weaponSwingTimer > 0) {
+                weaponSwingTimer -= dt;
+                weaponSwingAngle = -60.0f + (1.0f - weaponSwingTimer / 0.3f) * 180.0f;
+            }
+
+            // Обновление дня/ночи
             dayNightCycle.Update(dt);
+
+            // Голод
             survivalStats.hungerTimer -= dt;
             if (survivalStats.hungerTimer <= 0) {
                 survivalStats.hunger = std::max(0, survivalStats.hunger - 1);
                 survivalStats.hungerTimer = 30.0f;
             }
+            // Голод: 0 HP => теряем здоровье
             if (survivalStats.hunger <= 0 && survivalStats.health > 0)
                 survivalStats.health = std::max(0, survivalStats.health - 1);
+            // Регенерация если голод > 10
             if (survivalStats.hunger > 10 && survivalStats.health < survivalStats.maxHealth)
                 survivalStats.health = std::min(survivalStats.maxHealth, survivalStats.health + 1);
             player.health = survivalStats.health;
 
+            // ==================== ДВИЖЕНИЕ ====================
             if (!showInventory && !showCrafting) {
                 Vector2 moveDir = {0,0};
                 if (IsKeyDown(KEY_W)||IsKeyDown(KEY_UP)) moveDir.y-=1;
@@ -343,34 +406,38 @@ int main() {
                     float sx = moveDir.x*playerSpeed*dt;
                     float sy = moveDir.y*playerSpeed*dt;
 
+                    // Столкновения по X
                     Vector2 nx = {playerPos.x+sx, playerPos.y};
                     bool cx = false;
                     if (nx.x<15||nx.x>1985) cx=true;
-                    for (auto& o:obstacles) if (sqrtf(powf(nx.x-o.position.x,2)+powf(nx.y-o.position.y,2))<(playerRadius+o.radius)){cx=true;break;}
-                    for (auto& b:boulders) if (sqrtf(powf(nx.x-b.position.x,2)+powf(nx.y-b.position.y,2))<(playerRadius+b.radius)){cx=true;break;}
+                    for (auto& t:trees) if (t.active && sqrtf(powf(nx.x-t.position.x,2)+powf(nx.y-t.position.y,2))<(playerRadius+t.radius*0.4f)){cx=true;break;}
+                    for (auto& r:rocks) if (r.active && sqrtf(powf(nx.x-r.position.x,2)+powf(nx.y-r.position.y,2))<(playerRadius+r.radius*0.5f)){cx=true;break;}
                     for (auto& w:ruins) if (CheckCollisionCircleRec(nx,playerRadius,w.rect)){cx=true;break;}
                     if (sqrtf(powf(nx.x-lakePos.x,2)+powf(nx.y-lakePos.y,2))<(playerRadius+lakeRadius-6)) cx=true;
                     if (!cx) playerPos.x=nx.x;
 
+                    // Столкновения по Y
                     Vector2 ny = {playerPos.x, playerPos.y+sy};
                     bool cy = false;
                     if (ny.y<15||ny.y>1985) cy=true;
-                    for (auto& o:obstacles) if (sqrtf(powf(ny.x-o.position.x,2)+powf(ny.y-o.position.y,2))<(playerRadius+o.radius)){cy=true;break;}
-                    for (auto& b:boulders) if (sqrtf(powf(ny.x-b.position.x,2)+powf(ny.y-b.position.y,2))<(playerRadius+b.radius)){cy=true;break;}
+                    for (auto& t:trees) if (t.active && sqrtf(powf(ny.x-t.position.x,2)+powf(ny.y-t.position.y,2))<(playerRadius+t.radius*0.4f)){cy=true;break;}
+                    for (auto& r:rocks) if (r.active && sqrtf(powf(ny.x-r.position.x,2)+powf(ny.y-r.position.y,2))<(playerRadius+r.radius*0.5f)){cy=true;break;}
                     for (auto& w:ruins) if (CheckCollisionCircleRec(ny,playerRadius,w.rect)){cy=true;break;}
                     if (sqrtf(powf(ny.x-lakePos.x,2)+powf(ny.y-lakePos.y,2))<(playerRadius+lakeRadius-6)) cy=true;
                     if (!cy) playerPos.y=ny.y;
 
+                    // Частицы мага
                     if (player.className=="Маг" && rand()%100<15) {
                         Vector2 tip = {playerPos.x+(playerFacing.x<0?-12:12), playerPos.y-12};
                         SpawnParticle(tip, {(float)(rand()%30-15),(float)(rand()%30-15)}, Color{253,224,71,255}, 2.0f, 0.4f+(rand()%4)/10.0f);
                     }
                 }
 
+                // Камера следит за игроком
                 camera.target.x += (playerPos.x-camera.target.x)*0.08f;
                 camera.target.y += (playerPos.y-camera.target.y)*0.08f;
 
-                // Отдых в палатке
+                // ==================== ОТДЫХ В ПАЛАТКЕ ====================
                 float dtTent = sqrtf(powf(playerPos.x-tentPos.x,2)+powf(playerPos.y-tentPos.y,2));
                 if (dtTent<45 && IsKeyPressed(KEY_E)) {
                     survivalStats.health = survivalStats.maxHealth;
@@ -381,34 +448,73 @@ int main() {
                     for (int p=0;p<12;p++) { float a=p*6.28f/12; SpawnParticle(playerPos, {cosf(a)*45,sinf(a)*45}, Color{74,222,128,255}, 3, 0.6f); }
                 }
 
-                // Добыча дерева/камня [E]
+                // ==================== ДОБЫЧА РЕСУРСОВ [E] ====================
                 if (IsKeyPressed(KEY_E)) {
                     bool gathered = false;
-                    for (auto& o:obstacles) {
-                        float d = sqrtf(powf(playerPos.x-o.position.x,2)+powf(playerPos.y-o.position.y,2));
-                        if (d<50) {
-                            int amt = 1+rand()%2;
-                            for (int w=0;w<amt;w++) player.inventory.push_back(ITEM_WOOD);
-                            std::stringstream ss; ss<<"+"<<amt<<" Дерево";
-                            floatingTexts.push_back({ss.str(), Vector2{playerPos.x,playerPos.y-15}, Color{139,90,43,255}, 1,-40,1.2f,true});
-                            AddLogMessage("Срубил дерево, +"+std::to_string(amt)+" дерева.", miniLog);
-                            gathered = true; break;
+
+                    // Добыча дерева
+                    for (auto& t : trees) {
+                        if (!t.active) continue;
+                        float d = sqrtf(powf(playerPos.x-t.position.x,2)+powf(playerPos.y-t.position.y,2));
+                        if (d < 50) {
+                            t.hp--;
+                            t.shakeTimer = 0.2f;
+                            weaponSwingTimer = 0.3f;
+
+                            // Частицы
+                            for (int p=0;p<6;p++)
+                                SpawnParticle(t.position, {(float)(rand()%20-10),(float)(-15-rand()%15)}, Color{139,90,43,255}, 2, 0.5f);
+
+                            if (t.hp <= 0) {
+                                t.active = false;
+                                t.respawnTimer = 60.0f;
+                                int amt = 2 + rand()%3;
+                                for (int w=0;w<amt;w++) player.inventory.push_back(ITEM_WOOD);
+                                std::stringstream ss; ss<<"+"<<amt<<" Дерево";
+                                floatingTexts.push_back({ss.str(), Vector2{t.position.x,t.position.y-20}, Color{139,90,43,255}, 1,-40,1.2f,true});
+                                AddLogMessage("Срубил дерево, +"+std::to_string(amt)+" дерева.", miniLog);
+                            } else {
+                                std::stringstream ss; ss<<"-1 HP ("<<t.hp<<"/"<<t.maxHp<<")";
+                                floatingTexts.push_back({ss.str(), Vector2{t.position.x,t.position.y-20}, Color{200,200,200,255}, 1,-40,1.0f,true});
+                            }
+                            gathered = true;
+                            break;
                         }
                     }
-                    if (!gathered) for (auto& b:boulders) {
-                        float d = sqrtf(powf(playerPos.x-b.position.x,2)+powf(playerPos.y-b.position.y,2));
-                        if (d<35) {
-                            int amt = 1+rand()%2;
-                            for (int s=0;s<amt;s++) player.inventory.push_back(ITEM_STONE);
-                            std::stringstream ss; ss<<"+"<<amt<<" Камень";
-                            floatingTexts.push_back({ss.str(), Vector2{playerPos.x,playerPos.y-15}, Color{156,163,175,255}, 1,-40,1.2f,true});
-                            AddLogMessage("Выбил камень, +"+std::to_string(amt)+" камня.", miniLog);
-                            break;
+
+                    // Добыча камня
+                    if (!gathered) {
+                        for (auto& r : rocks) {
+                            if (!r.active) continue;
+                            float d = sqrtf(powf(playerPos.x-r.position.x,2)+powf(playerPos.y-r.position.y,2));
+                            if (d < 40) {
+                                r.hp--;
+                                r.shakeTimer = 0.2f;
+                                weaponSwingTimer = 0.3f;
+
+                                for (int p=0;p<4;p++)
+                                    SpawnParticle(r.position, {(float)(rand()%16-8),(float)(-12-rand()%12)}, Color{156,163,175,255}, 2, 0.4f);
+
+                                if (r.hp <= 0) {
+                                    r.active = false;
+                                    r.respawnTimer = 45.0f;
+                                    int amt = 2 + rand()%2;
+                                    for (int s=0;s<amt;s++) player.inventory.push_back(ITEM_STONE);
+                                    std::stringstream ss; ss<<"+"<<amt<<" Камень";
+                                    floatingTexts.push_back({ss.str(), Vector2{r.position.x,r.position.y-20}, Color{156,163,175,255}, 1,-40,1.2f,true});
+                                    AddLogMessage("Выбил камень, +"+std::to_string(amt)+" камня.", miniLog);
+                                } else {
+                                    std::stringstream ss; ss<<"-1 HP ("<<r.hp<<"/"<<r.maxHp<<")";
+                                    floatingTexts.push_back({ss.str(), Vector2{r.position.x,r.position.y-20}, Color{200,200,200,255}, 1,-40,1.0f,true});
+                                }
+                                gathered = true;
+                                break;
+                            }
                         }
                     }
                 }
 
-                // Сбор предметов на карте
+                // ==================== СБОР ПРЕДМЕТОВ НА КАРТЕ ====================
                 for (auto& item:mapItems) {
                     if (!item.active) { item.respawnTimer-=dt; if (item.respawnTimer<=0) item.active=true; continue; }
                     float d = sqrtf(powf(playerPos.x-item.position.x,2)+powf(playerPos.y-item.position.y,2));
@@ -429,7 +535,7 @@ int main() {
                     }
                 }
 
-                // Слизни
+                // ==================== СЛИЗНИ ====================
                 for (size_t i=0;i<slimes.size();++i) {
                     auto& s=slimes[i];
                     if (!s.active) continue;
@@ -450,6 +556,7 @@ int main() {
                     if (dt2>2) { s.position.x+=(toT.x/dt2)*s.speed*dt; s.position.y+=(toT.y/dt2)*s.speed*dt; }
                     if (rand()%100<8) SpawnParticle(s.position, {0,0}, s.speed>60?Color{248,113,113,160}:Color{74,222,128,160}, 3+rand()%3, 0.6f+(rand()%5)/10.f);
 
+                    // Встреча со слизнем
                     float dp=sqrtf(powf(playerPos.x-s.position.x,2)+powf(playerPos.y-s.position.y,2));
                     if (dp<(playerRadius+14)) {
                         state=STATE_MEADOW_SLIME;
@@ -460,17 +567,37 @@ int main() {
                     }
                 }
 
+                // Частицы костра
                 if (rand()%100<25) SpawnParticle(campfirePos, {(float)(rand()%30-15),(float)(-35-rand()%30)}, Color{245,158,11,255}, 2.5f+rand()%2, 0.8f+(rand()%6)/10.f);
             }
 
+            // Респавн деревьев и камней
+            for (auto& t : trees) {
+                if (!t.active) {
+                    t.respawnTimer -= dt;
+                    if (t.respawnTimer <= 0) { t.active = true; t.hp = t.maxHp; }
+                }
+                if (t.shakeTimer > 0) t.shakeTimer -= dt;
+            }
+            for (auto& r : rocks) {
+                if (!r.active) {
+                    r.respawnTimer -= dt;
+                    if (r.respawnTimer <= 0) { r.active = true; r.hp = r.maxHp; }
+                }
+                if (r.shakeTimer > 0) r.shakeTimer -= dt;
+            }
+
+            // Обновление текстов
             for (auto& t:floatingTexts) { if (!t.active) continue; t.position.y+=t.ySpeed*dt; t.lifetime-=dt; t.alpha=t.lifetime/1.2f; if (t.lifetime<=0) t.active=false; }
             for (auto& item:miniLog) { if (item.second>0) item.second-=dt; }
         }
+        // ==================== БОЙ ====================
         else if (state==STATE_MEADOW_SLIME) {
             if (screenShakeIntensity>0) screenShakeIntensity-=dt*12;
             if (redFlashTimer>0) redFlashTimer-=dt;
             if (slashEffectTimer>0) slashEffectTimer-=dt;
 
+            // Ход слизня
             if (combatTurnState==1) {
                 combatTimer+=dt;
                 if (combatTimer>=0.8f) {
@@ -482,7 +609,7 @@ int main() {
                     combatLog.push_back(ss.str());
                     redFlashTimer=0.15f; screenShakeIntensity=10;
                     std::stringstream sd2; sd2<<"-"<<sd<<" HP";
-                    floatingTexts.push_back({sd2.str(), Vector2{windowWidth/4.f+10,220}, Color{239,68,68,255}, 1,-40,1.2f,true});
+                    floatingTexts.push_back({sd2.str(), Vector2{(float)(GetScreenWidth()/4+10),220}, Color{239,68,68,255}, 1,-40,1.2f,true});
                     if (player.health<=0) { player.isAlive=false; combatLog.push_back("Не выдержал..."); combatTurnState=3; }
                     else combatTurnState=0;
                     combatTimer=0;
@@ -493,7 +620,7 @@ int main() {
             for (auto& t:floatingTexts) { if (!t.active) continue; t.position.y+=t.ySpeed*dt; t.lifetime-=dt; t.alpha=t.lifetime/1.2f; if (t.lifetime<=0) t.active=false; }
         }
 
-        // === ОТРИСОВКА ===
+        // ==================== ОТРИСОВКА ====================
         BeginDrawing();
         ClearBackground(bgDark);
 
@@ -505,49 +632,47 @@ int main() {
             else gameMenu.DrawMainMenu(font, windowWidth, windowHeight, framesCounter);
         }
         else if (state==STATE_WELCOME) {
-            // ===== MINECRAFT-СТИЛЬ ЭКРАН ВВОДА ИМЕНИ =====
-            DrawRectangleGradientV(0, 0, windowWidth, windowHeight, Color{30,30,30,255}, Color{15,15,15,255});
+            // ===== ЭКРАН ВВОДА ИМЕНИ (Minecraft стиль) =====
+            DrawRectangleGradientV(0, 0, GetScreenWidth(), GetScreenHeight(), Color{30,30,30,255}, Color{15,15,15,255});
 
-            // Тайловый фон (как в Minecraft)
-            for (int x=0; x<windowWidth; x+=32)
-                for (int y=0; y<windowHeight; y+=32) {
+            // Тайловый фон
+            for (int x=0; x<GetScreenWidth(); x+=32)
+                for (int y=0; y<GetScreenHeight(); y+=32) {
                     unsigned char v = 25 + (rand()%8);
                     DrawRectangle(x, y, 32, 32, Color{v, (unsigned char)(v+10), v, 255});
                     DrawRectangleLines(x, y, 32, 32, Color{(unsigned char)(v-5),(unsigned char)(v+5),(unsigned char)(v-5),60});
                 }
 
-            // Заголовок по центру
+            float sw = GetScreenWidth(), sh = GetScreenHeight();
+
+            // Заголовок
             const char* title = "LEGENDS OF GREEN MEADOW";
             Vector2 ts = MeasureTextEx(font, title, 36, 1);
-            DrawTextEx(font, title, {windowWidth/2.f - ts.x/2 + 2, 142}, 36, 1, Color{0,0,0,150});
-            DrawTextEx(font, title, {windowWidth/2.f - ts.x/2, 140}, 36, 1, Color{80,200,120,255});
+            DrawTextEx(font, title, {sw/2.f - ts.x/2 + 2, sh*0.2f + 2}, 36, 1, Color{0,0,0,150});
+            DrawTextEx(font, title, {sw/2.f - ts.x/2, sh*0.2f}, 36, 1, Color{80,200,120,255});
 
-            // Подзаголовок
             const char* sub = "Введите имя вашего героя";
-            Vector2 ss = MeasureTextEx(font, sub, 18, 1);
-            DrawTextEx(font, sub, {windowWidth/2.f - ss.x/2, 200}, 18, 1, Color{180,180,180,255});
+            Vector2 ss2 = MeasureTextEx(font, sub, 18, 1);
+            DrawTextEx(font, sub, {sw/2.f - ss2.x/2, sh*0.3f}, 18, 1, Color{180,180,180,255});
 
-            // Поле ввода (Minecraft стиль)
-            Rectangle inputRect = {windowWidth/2.f - 180, 250, 360, 50};
+            // Поле ввода
+            Rectangle inputRect = {sw/2.f - 180, sh*0.38f, 360, 50};
             DrawRectangleRec(inputRect, Color{50,50,50,255});
             DrawRectangleLinesEx(inputRect, 3, Color{30,30,30,255});
-            // Внутренняя рамка
             Rectangle inner = {inputRect.x+4, inputRect.y+4, inputRect.width-8, inputRect.height-8};
             DrawRectangleRec(inner, Color{20,20,20,255});
 
-            // Текст
             Vector2 ns = MeasureTextEx(font, playerNameInput.c_str(), 22, 1);
             DrawTextEx(font, playerNameInput.c_str(), {inputRect.x + inputRect.width/2 - ns.x/2, inputRect.y + 14}, 22, 1, Color{255,255,255,255});
 
-            // Курсор
             if (((framesCounter/30)%2)==0 && playerNameInput.length()<14) {
-                float cx = inputRect.x + inputRect.width/2 + ns.x/2 + 3;
-                DrawRectangle((int)cx, (int)inputRect.y+12, 2, 26, Color{255,255,255,200});
+                float cx2 = inputRect.x + inputRect.width/2 + ns.x/2 + 3;
+                DrawRectangle((int)cx2, (int)inputRect.y+12, 2, 26, Color{255,255,255,200});
             }
 
             // Кнопка "Играть"
             bool canPlay = !playerNameInput.empty();
-            Rectangle btnPlay = {windowWidth/2.f - 100, 330, 200, 45};
+            Rectangle btnPlay = {sw/2.f - 100, sh*0.52f, 200, 45};
             Color btnCol = canPlay ? Color{80,160,80,255} : Color{60,60,60,255};
             Color btnHi = canPlay ? Color{100,200,100,255} : Color{70,70,70,255};
             bool hovPlay = CheckCollisionPointRec(GetMousePosition(), btnPlay);
@@ -566,13 +691,13 @@ int main() {
             }
 
             // Подсказки
-            DrawTextEx(font, "Подсказки:", {50, windowHeight-90}, 14, 1, Color{120,120,120,255});
-            DrawTextEx(font, "[WASD] бег   [E] добыча ресурсов   [I] инвентарь   [C] кRAFT   [F11] полноэкран", {50, windowHeight-70}, 13, 1, Color{100,100,100,255});
-            DrawTextEx(font, "[TAB] инвентарь   [ESC] закрыть меню   [ENTER] подтвердить", {50, windowHeight-50}, 13, 1, Color{100,100,100,255});
+            DrawTextEx(font, "Подсказки:", {50, sh-90}, 14, 1, Color{120,120,120,255});
+            DrawTextEx(font, "[WASD] бег   [E] добыча ресурсов   [I] инвентарь   [C] крафт   [F11] полноэкран", {50, sh-70}, 13, 1, Color{100,100,100,255});
+            DrawTextEx(font, "[TAB] инвентарь   [ESC] закрыть меню   [ENTER] подтвердить", {50, sh-50}, 13, 1, Color{100,100,100,255});
         }
         else if (state==STATE_CLASS_SELECT) {
-            DrawRectangle(0,0,windowWidth,95,bgPanel);
-            DrawLine(0,95,windowWidth,95,Color{48,54,68,255});
+            DrawRectangle(0,0,GetScreenWidth(),95,bgPanel);
+            DrawLine(0,95,GetScreenWidth(),95,Color{48,54,68,255});
             DrawTextEx(font, "ЛЕГЕНДЫ ЗЕЛЕНОЙ ПОЛЯНЫ", Vector2{30,25}, 28, 1, textWhite);
             DrawTextEx(font, "Выберите класс вашего персонажа:", Vector2{310,130}, 22, 1, textWhite);
 
@@ -589,16 +714,19 @@ int main() {
                 InitWorldEntities(); state=STATE_2D_WORLD;
             }
         }
+        // ==================== ОТРИСОВКА 2D МИРА ====================
         else {
             if (state==STATE_2D_WORLD) {
                 BeginMode2D(camera);
 
+                // Трава
                 Texture2D grassTex = ResourceManager::Get().GetTex("grass");
                 for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
                     if (grassTex.id!=0) DrawTexture(grassTex, tx*grassTex.width, ty*grassTex.height, WHITE);
                     else { DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); DrawRectangleLines(tx*100,ty*100,100,100,Color{20,85,40,30}); }
                 }
 
+                // Цветочки
                 srand(2345);
                 for (int i=0;i<50;++i) {
                     int fx=rand()%2000, fy=rand()%2000;
@@ -610,6 +738,7 @@ int main() {
                     }
                 }
 
+                // Дороги
                 DrawCircle(1000,1000,150,Color{63,63,70,255});
                 DrawCircleLines(1000,1000,150,Color{82,82,91,255});
                 DrawLineEx(campfirePos,tentPos,22,Color{82,82,91,255});
@@ -617,73 +746,158 @@ int main() {
                 DrawLineEx(Vector2{1000,1000},Vector2{1200,1010},24,Color{82,82,91,255});
                 DrawLineEx(Vector2{1000,1000},Vector2{1200,1010},20,Color{113,113,122,255});
 
+                // Палатка
                 DrawTent(tentPos);
-                DrawCampfire(campfirePos, framesCounter);
-                DrawWaterPond(lakePos, lakeRadius, framesCounter);
 
-                float dtTent = sqrtf(powf(playerPos.x-tentPos.x,2)+powf(playerPos.y-tentPos.y,2));
-                if (dtTent<45 && player.health<player.maxHealth) {
+                // ==================== КОСТЁР С АНИМАЦИЕЙ PNG ====================
+                int fireFrame = (framesCounter / 10) % 4;
+                std::string fireKey = "campfire_" + std::to_string(fireFrame);
+                Texture2D fireTex = ResourceManager::Get().GetTex(fireKey.c_str());
+                if (fireTex.id != 0) {
+                    DrawTextureEx(fireTex, {campfirePos.x - 32, campfirePos.y - 32}, 0, 1.0f, WHITE);
+                } else {
+                    // Фоллбэк процедурный
+                    DrawCampfire(campfirePos, framesCounter);
+                }
+
+                // ==================== ОЗЕРО С ВОЛНАМИ ====================
+                // Основная вода
+                DrawCircleV(lakePos, lakeRadius, Color{30, 100, 170, 200});
+                DrawCircleV(lakePos, lakeRadius - 5, Color{40, 120, 190, 180});
+                // Волны
+                for (int i = 0; i < 3; i++) {
+                    float waveR = lakeRadius - 20 - i * 20;
+                    float waveOff = sinf(framesCounter * 0.05f + i * 2.0f) * 5;
+                    DrawCircleLines(lakePos.x + waveOff, lakePos.y + waveOff * 0.5f, waveR, Color{100, 180, 240, 80});
+                }
+                // Блики на воде
+                float blink = sinf(framesCounter * 0.08f) * 0.5f + 0.5f;
+                DrawCircle(lakePos.x - 25, lakePos.y - 25, 10, Color{200, 230, 255, (unsigned char)(60 * blink)});
+                DrawCircle(lakePos.x + 18, lakePos.y + 12, 6, Color{200, 230, 255, (unsigned char)(40 * blink)});
+                DrawCircle(lakePos.x + 5, lakePos.y - 35, 4, Color{220, 240, 255, (unsigned char)(50 * blink)});
+
+                // Подсказка палатки
+                float dtTent2 = sqrtf(powf(playerPos.x-tentPos.x,2)+powf(playerPos.y-tentPos.y,2));
+                if (dtTent2<45 && player.health<player.maxHealth) {
                     DrawRectangle(tentPos.x-70, tentPos.y-65, 140, 25, Color{30,30,30,200});
                     DrawTextEx(font, "[E] ОТДОХНУТЬ", Vector2{tentPos.x-55, tentPos.y-60}, 13, 1, Color{253,224,71,255});
                 }
 
-                // Подсказка у дерева
-                for (auto& obs:obstacles) {
-                    float d = sqrtf(powf(playerPos.x-obs.position.x,2)+powf(playerPos.y-obs.position.y,2));
-                    if (d<60) {
-                        DrawRectangle(obs.position.x-40, obs.position.y-55, 80, 18, Color{30,30,30,180});
-                        DrawTextEx(font, "[E] Добыть", Vector2{obs.position.x-32, obs.position.y-52}, 12, 1, Color{200,180,120,255});
+                // ==================== ДЕРЕВЬЯ (PNG) ====================
+                for (auto& t : trees) {
+                    if (!t.active) continue;
+                    Texture2D treeTex = ResourceManager::Get().GetTex("tree");
+
+                    // Позиция с дрожанием
+                    float offX = 0;
+                    if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
+
+                    if (treeTex.id != 0) {
+                        float scale = 0.5f;
+                        float tw = treeTex.width * scale;
+                        float th = treeTex.height * scale;
+                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
+                    } else {
+                        DrawEllipse(t.position.x+offX,t.position.y+24,12,5,Color{0,0,0,100});
+                        DrawTree({t.position.x+offX, t.position.y}, t.radius);
                     }
-                }
-                for (auto& b:boulders) {
-                    float d = sqrtf(powf(playerPos.x-b.position.x,2)+powf(playerPos.y-b.position.y,2));
-                    if (d<45) {
-                        DrawRectangle(b.position.x-40, b.position.y-35, 80, 18, Color{30,30,30,180});
-                        DrawTextEx(font, "[E] Камень", Vector2{b.position.x-32, b.position.y-32}, 12, 1, Color{180,180,180,255});
+
+                    // Подсказка добычи
+                    float d = sqrtf(powf(playerPos.x-t.position.x,2)+powf(playerPos.y-t.position.y,2));
+                    if (d < 60) {
+                        DrawRectangle(t.position.x-40, t.position.y-60, 80, 18, Color{30,30,30,180});
+                        DrawTextEx(font, "[E] Дерево", Vector2{t.position.x-30, t.position.y-57}, 12, 1, Color{200,180,120,255});
+                        // Полоска HP дерева
+                        DrawRectangle(t.position.x-25, t.position.y-70, 50, 6, Color{50,50,50,200});
+                        DrawRectangle(t.position.x-25, t.position.y-70, (int)(50.0f * t.hp / t.maxHp), 6, Color{34,197,94,255});
                     }
                 }
 
+                // ==================== КАМНИ (PNG) ====================
+                for (auto& r : rocks) {
+                    if (!r.active) continue;
+                    Texture2D rockTex = ResourceManager::Get().GetTex("rock");
+
+                    float offX = 0;
+                    if (r.shakeTimer > 0) offX = sinf(r.shakeTimer * 40) * 2;
+
+                    if (rockTex.id != 0) {
+                        float scale = 0.5f;
+                        float rw = rockTex.width * scale;
+                        float rh = rockTex.height * scale;
+                        DrawTextureEx(rockTex, {r.position.x - rw/2 + offX, r.position.y - rh/2}, 0, scale, WHITE);
+                    } else {
+                        DrawEllipse(r.position.x,r.position.y+r.radius-2,r.radius,r.radius*0.4f,Color{0,0,0,100});
+                        DrawCircleV(r.position,r.radius,Color{82,82,91,255});
+                        DrawCircleV(r.position,r.radius-3,Color{113,113,122,255});
+                    }
+
+                    // Подсказка
+                    float d = sqrtf(powf(playerPos.x-r.position.x,2)+powf(playerPos.y-r.position.y,2));
+                    if (d < 45) {
+                        DrawRectangle(r.position.x-40, r.position.y-35, 80, 18, Color{30,30,30,180});
+                        DrawTextEx(font, "[E] Камень", Vector2{r.position.x-30, r.position.y-32}, 12, 1, Color{180,180,180,255});
+                        DrawRectangle(r.position.x-25, r.position.y-45, 50, 6, Color{50,50,50,200});
+                        DrawRectangle(r.position.x-25, r.position.y-45, (int)(50.0f * r.hp / r.maxHp), 6, Color{156,163,175,255});
+                    }
+                }
+
+                // Руины и предметы
                 for (auto& w:ruins) DrawStoneWall(w);
                 for (auto& item:mapItems) DrawMapItem(item);
                 for (auto& s:slimes) DrawWanderingSlime(s, framesCounter, bgDark);
-                for (auto& b:boulders) {
-                    DrawEllipse(b.position.x,b.position.y+b.radius-2,b.radius,b.radius*0.4f,Color{0,0,0,100});
-                    DrawCircleV(b.position,b.radius,Color{82,82,91,255});
-                    DrawCircleV(b.position,b.radius-3,Color{113,113,122,255});
-                    DrawCircle(b.position.x-b.radius*0.3f,b.position.y-b.radius*0.3f,b.radius*0.25f,Color{161,161,170,220});
-                    DrawCircleLines(b.position.x,b.position.y,b.radius,Color{63,63,70,255});
-                }
-                for (auto& o:obstacles) { DrawEllipse(o.position.x,o.position.y+24,12,5,Color{0,0,0,100}); DrawTree(o.position,o.radius); }
 
                 UpdateAndDrawParticles(dt);
 
+                // ==================== ИГРОК + ВЗМАХ ОРУЖИЕМ ====================
                 bool isMoving = (IsKeyDown(KEY_W)||IsKeyDown(KEY_UP)||IsKeyDown(KEY_S)||IsKeyDown(KEY_DOWN)||IsKeyDown(KEY_A)||IsKeyDown(KEY_LEFT)||IsKeyDown(KEY_D)||IsKeyDown(KEY_RIGHT)) && !showInventory && !showCrafting;
                 DrawPlayerAvatar(player.className, playerPos, playerRadius, playerFacing, isMoving, framesCounter, bgDark);
 
+                // Взмах оружием при добыче
+                if (weaponSwingTimer > 0) {
+                    float swingRad = weaponSwingAngle * 3.14159f / 180.0f;
+                    float armX = playerPos.x + cosf(swingRad) * 20;
+                    float armY = playerPos.y - 10 + sinf(swingRad) * 20;
+                    // Рисуем текстуру кирки/меча
+                    Texture2D wpnTex = ResourceManager::Get().GetTex("sword");
+                    if (wpnTex.id != 0) {
+                        DrawTextureEx(wpnTex, {armX - 16, armY - 16}, weaponSwingAngle, 0.5f, WHITE);
+                    } else {
+                        DrawLineEx({playerPos.x, playerPos.y - 10}, {armX, armY}, 3, Color{200,200,210,255});
+                    }
+                }
+
+                // Плавающие тексты
                 for (auto& t:floatingTexts) { if (!t.active) continue; DrawTextEx(font,t.text.c_str(),t.position,15,1,ColorAlpha(t.color,t.alpha)); }
                 DrawRectangleLines(0,0,2000,2000,Color{220,38,38,120});
                 EndMode2D();
 
-                // Оверлей день/ночь
-                if (dayNightCycle.currentPhase==DAY_EVENING) { float a=(dayNightCycle.timeOfDay-18)/3; DrawRectangle(0,0,windowWidth,windowHeight,Color{10,10,30,(unsigned char)(a*120)}); }
-                else if (dayNightCycle.currentPhase==DAY_NIGHT) DrawRectangle(0,0,windowWidth,windowHeight,Color{10,10,30,120});
-                else if (dayNightCycle.currentPhase==DAY_MORNING) { float a=1-(dayNightCycle.timeOfDay-6)/6; DrawRectangle(0,0,windowWidth,windowHeight,Color{10,10,30,(unsigned char)(a*80)}); }
+                // ==================== ОВЕРЛЕЙ ДЕНЬ/НОЧЬ (на весь экран) ====================
+                if (dayNightCycle.currentPhase==DAY_EVENING) {
+                    float a=(dayNightCycle.timeOfDay-18)/3;
+                    DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,(unsigned char)(a*120)});
+                }
+                else if (dayNightCycle.currentPhase==DAY_NIGHT)
+                    DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,120});
+                else if (dayNightCycle.currentPhase==DAY_MORNING) {
+                    float a=1-(dayNightCycle.timeOfDay-6)/6;
+                    DrawRectangle(0,0,GetScreenWidth(),GetScreenHeight(),Color{10,10,30,(unsigned char)(a*80)});
+                }
 
-                // === ИНВЕНТАРЬ ===
+                // ==================== ИНВЕНТАРЬ ====================
                 if (showInventory) {
-                    DrawRectangle(0,0,windowWidth,windowHeight,Color{0,0,0,200});
-                    Rectangle invR={windowWidth/2.f-300, 50, 600, 540};
+                    float sw = GetScreenWidth(), sh = GetScreenHeight();
+                    DrawRectangle(0,0,sw,sh,Color{0,0,0,200});
+                    Rectangle invR={sw/2.f-300, 50, 600, 540};
                     DrawRectangleRounded(invR, 0.02f, 4, Color{40,40,45,255});
                     DrawRectangleRoundedLines(invR, 0.02f, 4, 2, Color{70,70,75,255});
 
                     DrawTextEx(font, "ИНВЕНТАРЬ", {invR.x+20, invR.y+15}, 20, 1, Color{220,220,220,255});
                     DrawLine(invR.x+15,invR.y+45,invR.x+invR.width-15,invR.y+45,Color{70,70,75,255});
 
-                    // Сетка слотов
                     int slotSize=65, slotPad=6, slotsX=8, slotsY=5;
                     float gx=invR.x+20, gy=invR.y+55;
                     int slotIdx=0;
-                    // Собираем уникальные предметы с количеством
                     std::vector<std::pair<ItemType,int>> grouped;
                     std::vector<int> seen(ITEM_MANA_CRYSTAL+1,0);
                     for (auto& it:player.inventory) {
@@ -741,32 +955,29 @@ int main() {
                         btnY+=40;
                     }
 
-                    // Золото
                     DrawTextEx(font, ("Золото: "+std::to_string(player.gold)).c_str(), {infoR.x+10,btnY}, 14, 1, Color{245,158,11,255});
 
-                    // Кнопка закрытия
                     if (DrawButton(font, {invR.x+invR.width/2-75, invR.y+invR.height-50, 150, 38}, "Закрыть [I]", Color{71,85,105,255}, Color{100,116,139,255}, Color{51,65,85,255}, Color{255,255,255,255}))
                         showInventory=false;
                 }
 
-                // === КРАФТ ===
+                // ==================== КРАФТ ====================
                 if (showCrafting) {
-                    DrawRectangle(0,0,windowWidth,windowHeight,Color{0,0,0,200});
-                    Rectangle cR={windowWidth/2.f-280, 40, 560, 560};
+                    float sw = GetScreenWidth(), sh = GetScreenHeight();
+                    DrawRectangle(0,0,sw,sh,Color{0,0,0,200});
+                    Rectangle cR={sw/2.f-280, 40, 560, 560};
                     DrawRectangleRounded(cR, 0.02f, 4, Color{40,40,45,255});
                     DrawRectangleRoundedLines(cR, 0.02f, 4, 2, Color{70,70,75,255});
 
                     DrawTextEx(font, "КРАФТ", {cR.x+20,cR.y+15}, 20, 1, Color{220,220,220,255});
                     DrawLine(cR.x+15,cR.y+45,cR.x+cR.width-15,cR.y+45,Color{70,70,75,255});
 
-                    // Ресурсы
                     int wC=CountItems(ITEM_WOOD), sC=CountItems(ITEM_STONE), pC=CountItems(ITEM_STICK), dC=CountItems(ITEM_WOOD_PLANK);
                     DrawTextEx(font, "Ресурсы:", {cR.x+20,cR.y+55}, 14, 1, Color{180,180,180,255});
                     std::stringstream res;
                     res<<"[Дерево:"<<wC<<"] [Камень:"<<sC<<"] [Палки:"<<pC<<"] [Доски:"<<dC<<"]";
                     DrawTextEx(font, res.str().c_str(), {cR.x+20,cR.y+75}, 13, 1, Color{160,160,160,255});
 
-                    // Рецепты
                     float ry=cR.y+100;
                     auto& recipes=craftingSystem.GetRecipes();
                     for (auto& recipe:recipes) {
@@ -777,11 +988,9 @@ int main() {
                         DrawRectangleRounded(rR, 0.05f, 4, bg);
                         DrawRectangleRoundedLines(rR, 0.05f, 4, 1, can?Color{80,140,80,255}:Color{120,80,80,255});
 
-                        // Иконка результата
                         DrawItemIcon({rR.x+25, rR.y+20}, recipe.result, 20);
                         DrawTextEx(font, recipe.name.c_str(), {rR.x+50, rR.y+5}, 14, 1, Color{220,220,220,255});
 
-                        // Ингредиенты
                         std::string ingr;
                         for (size_t i=0;i<recipe.ingredients.size();i++) {
                             if (recipe.amounts[i]<=0) continue;
@@ -794,7 +1003,7 @@ int main() {
                             if (DrawButton(font, {rR.x+rR.width-90,rR.y+12,80,30}, "Крафт", Color{16,185,129,255}, Color{52,211,153,255}, Color{4,120,87,255}, Color{255,255,255,255})) {
                                 for (size_t i=0;i<recipe.ingredients.size();i++)
                                     for (int a=0;a<recipe.amounts[i];a++) RemoveOneItem(recipe.ingredients[i]);
-                                for (int r=0;r<recipe.resultAmount;r++) player.inventory.push_back(recipe.result);
+                                for (int r2=0;r2<recipe.resultAmount;r2++) player.inventory.push_back(recipe.result);
                                 AddLogMessage("Скрафтил: "+recipe.name, miniLog);
                                 floatingTexts.push_back({"+"+recipe.name, {playerPos.x,playerPos.y-15}, Color{253,224,71,255}, 1,-40,1.2f,true});
                             }
@@ -804,9 +1013,9 @@ int main() {
                     DrawTextEx(font, "[C] закрыть", {cR.x+cR.width-100, cR.y+cR.height-25}, 12, 1, Color{100,100,100,255});
                 }
 
-                // Лог
+                // ==================== ЛОГ ====================
                 if (!showInventory && !showCrafting) {
-                    int logY=windowHeight-40;
+                    int logY=GetScreenHeight()-40;
                     for (int i=(int)miniLog.size()-1;i>=0;--i) {
                         float life=miniLog[i].second;
                         if (life<=0) continue;
@@ -821,12 +1030,14 @@ int main() {
                     }
                 }
             }
+            // ==================== БОЙ ====================
             else if (state==STATE_MEADOW_SLIME) {
                 Vector2 sh={0,0};
                 if (screenShakeIntensity>0) { sh.x=(float)(rand()%20-10)*(screenShakeIntensity/10); sh.y=(float)(rand()%20-10)*(screenShakeIntensity/10); }
 
-                DrawRectangle(30+sh.x,120+sh.y,windowWidth-60,490,bgPanel);
-                DrawRectangleLines(30+sh.x,120+sh.y,windowWidth-60,490,Color{48,54,68,255});
+                float sw = GetScreenWidth();
+                DrawRectangle(30+sh.x,120+sh.y,sw-60,490,bgPanel);
+                DrawRectangleLines(30+sh.x,120+sh.y,sw-60,490,Color{48,54,68,255});
 
                 Rectangle pCard={80+sh.x,170+sh.y,240,280};
                 DrawRectangleRounded(pCard,0.1f,4,Color{26,28,35,255});
@@ -837,13 +1048,15 @@ int main() {
                 DrawTextEx(font,pName.c_str(),{pCard.x+(pCard.width-MeasureTextEx(font,pName.c_str(),18,1).x)/2, pCard.y+150},18,1,textWhite);
                 std::stringstream ssS; ssS<<"Урон: "<<player.damage<<"   Золото: "<<player.gold;
                 DrawTextEx(font,ssS.str().c_str(),{pCard.x+(pCard.width-MeasureTextEx(font,ssS.str().c_str(),14,1).x)/2,pCard.y+185},14,1,textGray);
+
+                // HP игрока полоской
                 DrawProgressBar(Rectangle{pCard.x+20,pCard.y+225,200,16},(float)player.health,(float)player.maxHealth,Color{239,68,68,255},Color{50,50,50,255});
                 std::stringstream ssHP; ssHP<<player.health<<" / "<<player.maxHealth<<" HP";
                 DrawTextEx(font,ssHP.str().c_str(),{pCard.x+(pCard.width-MeasureTextEx(font,ssHP.str().c_str(),12,1).x)/2,pCard.y+248},12,1,textWhite);
 
-                DrawTextEx(font,"VS",{windowWidth/2.f-15+sh.x,280+sh.y},26,1,Color{239,68,68,180});
+                DrawTextEx(font,"VS",{sw/2.f-15+sh.x,280+sh.y},26,1,Color{239,68,68,180});
 
-                Rectangle sCard={windowWidth-320+sh.x,170+sh.y,240,280};
+                Rectangle sCard={sw-320+sh.x,170+sh.y,240,280};
                 DrawRectangleRounded(sCard,0.1f,4,Color{26,28,35,255});
                 DrawRectangleRoundedLines(sCard,0.1f,4,1.5f,Color{239,68,68,255});
 
@@ -875,9 +1088,9 @@ int main() {
                     DrawLineEx({sc.x-60,sc.y-60},{sc.x+60,sc.y+60},2,Color{239,68,68,255});
                 }
                 for (auto& t:floatingTexts) { if (!t.active) continue; DrawTextEx(font,t.text.c_str(),t.position,22,1,ColorAlpha(t.color,t.alpha)); }
-                if (redFlashTimer>0) DrawRectangle(30,120,windowWidth-60,490,Color{239,68,68,(unsigned char)(90*(redFlashTimer/0.15f))});
+                if (redFlashTimer>0) DrawRectangle(30,120,sw-60,490,Color{239,68,68,(unsigned char)(90*(redFlashTimer/0.15f))});
 
-                Rectangle ccR={80+sh.x,470+sh.y,(float)(windowWidth-160),120};
+                Rectangle ccR={80+sh.x,470+sh.y,(float)(sw-160),120};
                 DrawRectangleRounded(ccR,0.15f,4,Color{26,28,35,255});
                 DrawRectangleRoundedLines(ccR,0.15f,4,1.5f,Color{48,54,68,255});
 
@@ -908,6 +1121,7 @@ int main() {
                     } else DrawTextEx(font,combatLog.back().c_str(),{ccR.x+(ccR.width-MeasureTextEx(font,combatLog.back().c_str(),16,1).x)/2,ccR.y+48},16,1,textWhite);
                 } else DrawTextEx(font,combatLog.back().c_str(),{ccR.x+(ccR.width-MeasureTextEx(font,combatLog.back().c_str(),16,1).x)/2,ccR.y+48},16,1,textWhite);
             }
+            // ==================== GAME OVER ====================
             else if (state==STATE_GAME_OVER) {
                 DrawTextEx(font,"ГЕРОЙ ПАЛ В БОЮ",{350,180},32,1,Color{239,68,68,255});
                 DrawTextEx(font,"Путешествие завершилось...",{275,240},16,1,textGray);
@@ -924,30 +1138,56 @@ int main() {
                 }
             }
 
-            // HUD
+            // ==================== HUD ====================
             if (state!=STATE_WELCOME&&state!=STATE_CLASS_SELECT&&state!=STATE_GAME_OVER) {
-                DrawRectangle(0,0,windowWidth,95,bgPanel);
-                DrawLine(0,95,windowWidth,95,Color{48,54,68,255});
+                DrawRectangle(0,0,GetScreenWidth(),95,bgPanel);
+                DrawLine(0,95,GetScreenWidth(),95,Color{48,54,68,255});
+
+                // Имя и класс
                 std::string pt=player.name+" ("+player.className+")";
-                DrawTextEx(font,pt.c_str(),{30,18},20,1,textWhite);
-                DrawTextEx(font,"HP:",{30,52},14,1,textGray);
-                DrawProgressBar(Rectangle{65,51,200,16},(float)survivalStats.health,(float)survivalStats.maxHealth,Color{239,68,68,255},Color{50,50,50,255});
+                DrawTextEx(font,pt.c_str(),{30,12},20,1,textWhite);
+
+                // ===== HP: сердечки в стиле Minecraft =====
+                int fullHearts = survivalStats.health / 2;
+                bool halfHeart = (survivalStats.health % 2) != 0;
+                for (int i = 0; i < 10; i++) {
+                    float hx = 30.0f + i * 22.0f;
+                    if (i < fullHearts)
+                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{239,68,68,255});
+                    else if (i == fullHearts && halfHeart)
+                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{239,68,68,128});
+                    else
+                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{80,80,80,255});
+                }
+                // Числовое значение
                 std::stringstream ssH; ssH<<survivalStats.health<<"/"<<survivalStats.maxHealth;
-                DrawTextEx(font,ssH.str().c_str(),{155,52},13,1,textWhite);
+                DrawTextEx(font,ssH.str().c_str(),{260,42},14,1,textWhite);
 
-                DrawTextEx(font,"Голод:",{30,72},12,1,textGray);
-                DrawProgressBar(Rectangle{75,71,100,10},(float)survivalStats.hunger,(float)survivalStats.maxHunger,Color{245,158,11,255},Color{50,50,50,255});
+                // ===== ГОЛОД: шампурики в стиле Minecraft =====
+                int fullHunger = survivalStats.hunger / 2;
+                bool halfHunger = (survivalStats.hunger % 2) != 0;
+                for (int i = 0; i < 10; i++) {
+                    float hx2 = 30.0f + i * 22.0f;
+                    if (i < fullHunger)
+                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{210,170,60,255});
+                    else if (i == fullHunger && halfHunger)
+                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{210,170,60,128});
+                    else
+                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{80,80,80,255});
+                }
 
-                DrawTextEx(font,("Урон: "+std::to_string(player.damage)).c_str(),{300,36},16,1,textWhite);
-                DrawTextEx(font,("Золото: "+std::to_string(player.gold)).c_str(),{430,36},16,1,Color{245,158,11,255});
+                // Статистики
+                DrawTextEx(font,("Урон: "+std::to_string(player.damage)).c_str(),{300,12},16,1,textWhite);
+                DrawTextEx(font,("Золото: "+std::to_string(player.gold)).c_str(),{450,12},16,1,Color{245,158,11,255});
 
+                // Время суток и подсказки
                 if (state==STATE_2D_WORLD) {
                     int h=(int)dayNightCycle.timeOfDay, m=(int)((dayNightCycle.timeOfDay-h)*60);
                     std::stringstream ssT; ssT<<(h<10?"0":"")<<h<<":"<<(m<10?"0":"")<<m;
                     const char* ph[]={"Утро","День","Вечер","Ночь"};
-                    DrawTextEx(font,ssT.str().c_str(),{600,36},16,1,textWhite);
-                    DrawTextEx(font,ph[dayNightCycle.currentPhase],{680,36},14,1,dayNightCycle.currentPhase==DAY_NIGHT?Color{100,149,237,255}:textWhite);
-                    DrawTextEx(font,"[WASD] бег  [E] добыча  [I] инв.  [C] крафт  [F11] fullscreen", {windowWidth-470,72}, 13, 1, textGray);
+                    DrawTextEx(font,ssT.str().c_str(),{580,12},16,1,textWhite);
+                    DrawTextEx(font,ph[dayNightCycle.currentPhase],{650,12},14,1,dayNightCycle.currentPhase==DAY_NIGHT?Color{100,149,237,255}:textWhite);
+                    DrawTextEx(font,"[WASD] бег  [E] добыча  [I] инв.  [C] крафт  [F11] fullscreen", {300,75}, 13, 1, textGray);
                 }
             }
         }

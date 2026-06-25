@@ -6,12 +6,12 @@
 
 // Игровые состояния
 enum GameState {
-    STATE_MENU,           // Главное меню
-    STATE_WELCOME,        // Экран ввода имени
-    STATE_CLASS_SELECT,   // Экран выбора класса
-    STATE_2D_WORLD,       // Игра: свободное перемещение в 2D мире
-    STATE_MEADOW_SLIME,   // Сцена пошагового боя
-    STATE_GAME_OVER       // Экран конца игры
+    STATE_MENU,
+    STATE_WELCOME,
+    STATE_CLASS_SELECT,
+    STATE_2D_WORLD,
+    STATE_MEADOW_SLIME,
+    STATE_GAME_OVER
 };
 
 // Типы предметов
@@ -27,8 +27,25 @@ enum ItemType {
 };
 
 struct MapItem { Vector2 position; ItemType type; bool active; float respawnTimer; };
-struct Obstacle { Vector2 position; float radius; };
 struct StoneWall { Rectangle rect; };
+
+struct TreeInfo {
+    Vector2 position;
+    float radius;
+    int hp, maxHp;
+    bool active;
+    float shakeTimer;
+    float respawnTimer;
+};
+
+struct RockInfo {
+    Vector2 position;
+    float radius;
+    int hp, maxHp;
+    bool active;
+    float shakeTimer;
+    float respawnTimer;
+};
 
 struct WanderingSlime {
     Vector2 position, targetPosition;

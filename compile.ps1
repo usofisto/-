@@ -11,7 +11,7 @@ if (-not (Test-Path "$includePath/raylib.h")) {
 
 Write-Host "Compiling the game..."
 # We use static linking flags for gcc runtime to ensure maximum portability
-g++ src/main.cpp src/biom.cc -o main.exe `
+g++ src/*.cpp src/*.cc -o main.exe `
     -I"$includePath" `
     -L"$libPath" `
     -lraylib `

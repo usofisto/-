@@ -1,0 +1,381 @@
+#include "render.h"
+#include <cmath>
+
+// Рисуем персонажа: направление взгляда, шагающие ноги, экипировка
+void DrawPlayerAvatar(const std::string& className, Vector2 position, float radius, Vector2 facing, bool isMoving, int framesCounter, Color bgDark) {
+    // Фаза анимации движения ног и покачивания туловища
+    float bobbingY = 0.0f;
+    float footOffset = 0.0f;
+    if (isMoving) {
+        bobbingY = sinf(framesCounter * 0.22f) * 2.5f;
+        footOffset = sinf(framesCounter * 0.22f) * 5.5f;
+    }
+    
+    Vector2 center = { position.x, position.y + bobbingY };
+    
+    // Тень под персонажем
+    DrawEllipse(center.x, center.y + 14, 11, 4.5f, Color{ 0, 0, 0, 120 });
+    
+    // Выбор цветов экипировки по классу персонажа
+    Color tunicColor = Color{ 100, 100, 100, 255 };
+    Color tunicDarkColor = Color{ 70, 70, 70, 255 };
+    Color hatColor = Color{ 50, 50, 50, 255 };
+    
+    if (className == "Воин") {
+        tunicColor = Color{ 59, 130, 246, 255 }; // Синяя броня
+        tunicDarkColor = Color{ 29, 78, 216, 255 };
+        hatColor = Color{ 156, 163, 175, 255 }; // Стальной шлем
+    } else if (className == "Маг") {
+        tunicColor = Color{ 139, 92, 246, 255 }; // Фиолетовая мантия
+        tunicDarkColor = Color{ 109, 40, 217, 255 };
+        hatColor = Color{ 79, 70, 229, 255 }; // Индиго шляпа
+    } else if (className == "Лучник") {
+        tunicColor = Color{ 16, 185, 129, 255 }; // Зеленый кожаный доспех
+        tunicDarkColor = Color{ 4, 120, 87, 255 };
+        hatColor = Color{ 180, 83, 9, 255 }; // Коричневый капюшон
+    }
+    
+    // 1. Отрисовка ног (шагание)
+    Vector2 leftFoot = { center.x - 5, center.y + 12 };
+    Vector2 rightFoot = { center.x + 5, center.y + 12 };
+    
+    if (isMoving) {
+        if (fabsf(facing.x) > fabsf(facing.y)) {
+            // Движение по горизонтали: ноги двигаются вверх/вниз
+            leftFoot.y += footOffset;
+            rightFoot.y -= footOffset;
+        } else {
+            // Движение по вертикали: ноги двигаются влево/вправо
+            leftFoot.x += footOffset * 0.7f;
+            rightFoot.x -= footOffset * 0.7f;
+        }
+    }
+    
+    DrawCircleV(leftFoot, 3.5f, Color{ 78, 53, 36, 255 }); // Кожаные ботинки
+    DrawCircleV(rightFoot, 3.5f, Color{ 78, 53, 36, 255 });
+    
+    // 2. Отрисовка тела (туника / нагрудник)
+    Rectangle bodyRect = { center.x - 9, center.y - 5, 18, 15 };
+    DrawRectangleRounded(bodyRect, 0.35f, 4, tunicColor);
+    DrawRectangleRoundedLines(bodyRect, 0.35f, 4, 1.5f, tunicDarkColor);
+    
+    if (className == "Воин") {
+        // Золотой герб на груди рыцаря
+        DrawCircle(center.x, center.y + 2, 2.5f, Color{ 245, 158, 11, 255 });
+    } else if (className == "Лучник") {
+        // Кожаный ремень через плечо
+        DrawLineEx(Vector2{ center.x - 9, center.y - 3 }, Vector2{ center.x + 9, center.y + 7 }, 2.0f, Color{ 120, 53, 4, 255 });
+    }
+    
+    // 3. Отрисовка головы и лица (зависит от направления)
+    Vector2 headCenter = { center.x, center.y - 10 };
+    DrawCircleV(headCenter, 8.5f, Color{ 254, 215, 170, 255 }); // Цвет кожи
+    
+    // Глаза направляются в сторону взгляда
+    if (facing.y > 0.0f) {
+        // Смотрит вниз: оба глаза видны прямо
+        DrawCircle(headCenter.x - 3, headCenter.y - 1, 2, Color{ 255, 255, 255, 255 });
+        DrawCircle(headCenter.x + 3, headCenter.y - 1, 2, Color{ 255, 255, 255, 255 });
+        DrawCircle(headCenter.x - 3, headCenter.y - 1, 1, Color{ 0, 0, 0, 255 });
+        DrawCircle(headCenter.x + 3, headCenter.y - 1, 1, Color{ 0, 0, 0, 255 });
+    } 
+    else if (facing.x < 0.0f) {
+        // Смотрит влево: один глаз виден сбоку
+        DrawCircle(headCenter.x - 5, headCenter.y - 1, 2, Color{ 255, 255, 255, 255 });
+        DrawCircle(headCenter.x - 5, headCenter.y - 1, 1, Color{ 0, 0, 0, 255 });
+    } 
+    else if (facing.x > 0.0f) {
+        // Смотрит вправо: один глаз виден сбоку
+        DrawCircle(headCenter.x + 5, headCenter.y - 1, 2, Color{ 255, 255, 255, 255 });
+        DrawCircle(headCenter.x + 5, headCenter.y - 1, 1, Color{ 0, 0, 0, 255 });
+    }
+    // Смотрит вверх: лица не видно (голова затылком)
+    
+    // 4. Отрисовка головного убора
+    if (className == "Воин") {
+        // Рыцарский шлем с красным пером
+        DrawCircleSector(headCenter, 8.5f, 180, 360, 6, hatColor);
+        DrawRectangle(headCenter.x - 8.5f, headCenter.y - 1, 17, 3, hatColor);
+        
+        float plumeSway = isMoving ? sinf(framesCounter * 0.25f) * 2.5f : 0.0f;
+        DrawTriangle(
+            Vector2{ headCenter.x, headCenter.y - 8 },
+            Vector2{ headCenter.x - 10 + plumeSway, headCenter.y - 17 },
+            Vector2{ headCenter.x - 2 + plumeSway, headCenter.y - 8 },
+            Color{ 220, 38, 38, 255 }
+        );
+    } 
+    else if (className == "Маг") {
+        // Высокая остроконечная шляпа с пряжкой
+        DrawTriangle(
+            Vector2{ headCenter.x, headCenter.y - 25 },
+            Vector2{ headCenter.x - 12, headCenter.y - 6 },
+            Vector2{ headCenter.x + 12, headCenter.y - 6 },
+            hatColor
+        );
+        DrawEllipse(headCenter.x, headCenter.y - 6, 15, 2.5f, hatColor);
+        DrawRectangle(headCenter.x - 3, headCenter.y - 9, 6, 3, Color{ 245, 158, 11, 255 });
+    } 
+    else if (className == "Лучник") {
+        // Капюшон следопыта
+        DrawCircleSector(headCenter, 9.5f, 160, 380, 6, tunicColor);
+        DrawEllipse(headCenter.x, headCenter.y + 5, 10, 2.5f, tunicColor);
+    }
+    
+    // 5. Оружие и щит в руках
+    Vector2 handPos = { center.x + 11, center.y + 2 };
+    if (facing.x < 0.0f) {
+        handPos = { center.x - 11, center.y + 2 };
+    }
+    if (facing.y < 0.0f) {
+        handPos.y -= 4; // Подъем рук при ходьбе вверх
+    }
+    
+    if (className == "Воин") {
+        // Рисуем щит на противоположной руке
+        Vector2 shieldPos = { center.x - 11, center.y + 3 };
+        if (facing.x < 0.0f) shieldPos = { center.x + 11, center.y + 3 };
+        DrawCircleV(shieldPos, 6.5f, Color{ 185, 28, 28, 255 });
+        DrawCircleV(shieldPos, 4.0f, Color{ 220, 38, 38, 255 });
+        
+        // Меч
+        Vector2 swordTip = { handPos.x + 8, handPos.y - 13 };
+        if (facing.x < 0.0f) swordTip = { handPos.x - 8, handPos.y - 13 };
+        if (facing.y < 0.0f) swordTip = { handPos.x, handPos.y - 15 };
+        
+        DrawLineEx(handPos, swordTip, 3.0f, Color{ 229, 231, 235, 255 });
+        DrawLineEx(Vector2{ handPos.x - 2, handPos.y - 3 }, Vector2{ handPos.x + 2, handPos.y - 1 }, 2, Color{ 120, 53, 4, 255 });
+    } 
+    else if (className == "Маг") {
+        // Магический светящийся посох
+        Vector2 staffTop = { handPos.x + 3, handPos.y - 16 };
+        if (facing.x < 0.0f) staffTop = { handPos.x - 3, handPos.y - 16 };
+        
+        DrawLineEx(Vector2{ handPos.x, handPos.y + 7 }, staffTop, 2.0f, Color{ 120, 53, 4, 255 });
+        DrawCircleV(staffTop, 3.5f, Color{ 253, 224, 71, 255 });
+        DrawCircleV(staffTop, 6.0f, Color{ 253, 224, 71, 80 });
+    } 
+    else if (className == "Лучник") {
+        // Деревянный лук
+        DrawCircleSector(handPos, 10, -90, 90, 5, Color{ 180, 83, 9, 255 });
+        DrawCircleSector(handPos, 8, -90, 90, 5, bgDark);
+        DrawLine(handPos.x, handPos.y - 10, handPos.x, handPos.y + 10, Color{ 243, 244, 246, 120 });
+    }
+}
+
+// Дерево: ствол с корой, объёмная крона с тенью и бликами
+void DrawTree(Vector2 position, float radius) {
+    // Ствол: внешняя кора + ядро
+    DrawRectangle(position.x - 7, position.y - 2, 14, 36, Color{ 55, 33, 18, 255 });
+    DrawRectangle(position.x - 5, position.y - 2, 10, 36, Color{ 68, 43, 26, 255 });
+    DrawRectangle(position.x - 3, position.y, 6, 32, Color{ 120, 53, 4, 255 });
+    
+    // Волокна коры для фактуры
+    DrawLine(position.x - 4, position.y + 3, position.x - 4, position.y + 28, Color{ 45, 25, 10, 255 });
+    DrawLine(position.x - 1, position.y + 6, position.x - 1, position.y + 26, Color{ 80, 35, 10, 255 });
+    DrawLine(position.x + 2, position.y + 8, position.x + 2, position.y + 22, Color{ 80, 35, 10, 255 });
+    DrawLine(position.x + 4, position.y + 4, position.x + 4, position.y + 27, Color{ 45, 25, 10, 255 });
+
+    // Корни у основания ствола
+    DrawTriangle(
+        Vector2{ position.x - 7, position.y + 34 },
+        Vector2{ position.x - 14, position.y + 38 },
+        Vector2{ position.x - 3, position.y + 36 },
+        Color{ 55, 33, 18, 255 }
+    );
+    DrawTriangle(
+        Vector2{ position.x + 7, position.y + 34 },
+        Vector2{ position.x + 3, position.y + 36 },
+        Vector2{ position.x + 14, position.y + 38 },
+        Color{ 55, 33, 18, 255 }
+    );
+
+    // Крона: многослойная с чётким контуром
+    // Тень кроны (самый нижний слой)
+    DrawCircle(position.x, position.y - 10, radius + 6, Color{ 14, 60, 32, 255 });
+    // Тёмный контур кроны
+    DrawCircle(position.x, position.y - 13, radius + 4, Color{ 20, 83, 45, 255 });
+    DrawCircle(position.x, position.y - 13, radius + 2, Color{ 22, 101, 52, 255 });
+    
+    // Основная масса листвы
+    DrawCircle(position.x, position.y - 14, radius, Color{ 22, 163, 74, 255 });
+    
+    // Боковые кластеры для объёма
+    DrawCircle(position.x - 8, position.y - 16, radius - 3, Color{ 34, 197, 94, 255 });
+    DrawCircle(position.x + 7, position.y - 10, radius - 4, Color{ 21, 128, 61, 255 });
+    DrawCircle(position.x - 3, position.y - 20, radius - 5, Color{ 74, 222, 128, 255 });
+    
+    // Контрастные блики (солнечный свет)
+    DrawCircle(position.x - 10, position.y - 22, 3.0f, Color{ 187, 247, 208, 230 });
+    DrawCircle(position.x - 5, position.y - 18, 2.0f, Color{ 200, 255, 220, 180 });
+    
+    // Чёткий внешний контур кроны (обводка)
+    DrawCircleLines(position.x, position.y - 13, radius + 4, Color{ 14, 60, 32, 200 });
+}
+
+// Декоративный каменный бортик костра
+void DrawFirePit(Vector2 position) {
+    int numStones = 8;
+    for (int i = 0; i < numStones; i++) {
+        float angle = i * (3.14159f * 2.0f / numStones);
+        Vector2 stonePos = { position.x + cosf(angle) * 19.0f, position.y + sinf(angle) * 19.0f };
+        DrawCircleV(stonePos, 4.5f, Color{ 113, 113, 122, 255 }); // Серый камень
+        DrawCircleV(stonePos, 3.5f, Color{ 161, 161, 170, 255 }); // Серый блик
+        DrawCircleLines(stonePos.x, stonePos.y, 4.5f, Color{ 63, 63, 70, 255 }); // Контур
+    }
+}
+
+// Рисование мерцающего костра в безопасном лагере
+void DrawCampfire(Vector2 position, int framesCounter) {
+    DrawFirePit(position);
+    
+    DrawLineEx(Vector2{ position.x - 10, position.y + 6 }, Vector2{ position.x + 10, position.y - 3 }, 4, Color{ 85, 40, 15, 255 });
+    DrawLineEx(Vector2{ position.x + 10, position.y + 6 }, Vector2{ position.x - 10, position.y - 3 }, 4, Color{ 85, 40, 15, 255 });
+    
+    float f1 = 10.0f + 2.0f * sinf(framesCounter * 0.25f);
+    float f2 = 6.5f + 1.5f * sinf(framesCounter * 0.35f + 1.0f);
+    float f3 = 3.5f + 0.8f * sinf(framesCounter * 0.45f + 2.0f);
+    
+    DrawCircleV(position, f1, Color{ 239, 68, 68, 180 });  // Внешнее пламя
+    DrawCircleV(position, f2, Color{ 245, 158, 11, 210 }); // Среднее пламя
+    DrawCircleV(position, f3, Color{ 253, 224, 71, 255 }); // Ядро
+}
+
+// Рисование палатки для отдыха в лагере
+void DrawTent(Vector2 position) {
+    DrawTriangle(
+        Vector2{ position.x, position.y - 35 },
+        Vector2{ position.x - 40, position.y + 12 },
+        Vector2{ position.x + 40, position.y + 12 },
+        Color{ 68, 43, 26, 255 }
+    );
+    DrawTriangle(
+        Vector2{ position.x - 4, position.y - 35 },
+        Vector2{ position.x - 40, position.y + 12 },
+        Vector2{ position.x + 12, position.y + 12 },
+        Color{ 180, 83, 9, 255 }
+    );
+    DrawTriangle(
+        Vector2{ position.x, position.y - 12 },
+        Vector2{ position.x - 12, position.y + 12 },
+        Vector2{ position.x + 12, position.y + 12 },
+        Color{ 24, 24, 27, 255 }
+    );
+}
+
+// Отрисовка озера (воды) на карте
+void DrawWaterPond(Vector2 position, float radius, int framesCounter) {
+    DrawCircleV(position, radius, Color{ 30, 58, 138, 255 }); // Глубокий синий контур
+    DrawCircleV(position, radius - 4.0f, Color{ 29, 78, 216, 255 }); // Средний слой
+    
+    float rippleRadius1 = (float)((framesCounter % 200) * radius / 200.0f);
+    float rippleRadius2 = (float)(((framesCounter + 100) % 200) * radius / 200.0f);
+    
+    if (rippleRadius1 > 4.0f && rippleRadius1 < (radius - 5.0f)) {
+        DrawCircleLines(position.x, position.y, rippleRadius1, ColorAlpha(Color{ 96, 165, 250, 255 }, 0.7f * (1.0f - rippleRadius1/radius)));
+    }
+    if (rippleRadius2 > 4.0f && rippleRadius2 < (radius - 5.0f)) {
+        DrawCircleLines(position.x, position.y, rippleRadius2, ColorAlpha(Color{ 96, 165, 250, 255 }, 0.7f * (1.0f - rippleRadius2/radius)));
+    }
+    
+    DrawEllipse((int)position.x - 30, (int)position.y - 40, 25, 8, Color{ 147, 197, 253, 90 });
+}
+
+// Отрисовка каменных стен руин
+void DrawStoneWall(const StoneWall& wall) {
+    DrawRectangleRec(wall.rect, Color{ 63, 63, 70, 255 });
+    Rectangle inner = { wall.rect.x + 2, wall.rect.y + 2, wall.rect.width - 4, wall.rect.height - 4 };
+    DrawRectangleRec(inner, Color{ 113, 113, 122, 255 });
+    
+    if (wall.rect.width > wall.rect.height) {
+        for (float x = wall.rect.x + 30; x < (wall.rect.x + wall.rect.width); x += 30) {
+            DrawLine(x, wall.rect.y + 2, x, wall.rect.y + wall.rect.height - 2, Color{ 39, 39, 42, 255 });
+        }
+    } else {
+        for (float y = wall.rect.y + 30; y < (wall.rect.y + wall.rect.height); y += 30) {
+            DrawLine(wall.rect.x + 2, y, wall.rect.x + wall.rect.width - 2, y, Color{ 39, 39, 42, 255 });
+        }
+    }
+}
+
+// Рисование собираемых предметов (трава, золотоцвет)
+void DrawMapItem(const MapItem& item) {
+    if (!item.active) return;
+    
+    if (item.type == ITEM_HERB) {
+        DrawCircleV(item.position, 7, Color{ 34, 197, 94, 140 });
+        DrawCircleV(item.position, 4, Color{ 34, 197, 94, 255 });
+        DrawRectangle(item.position.x - 1.5f, item.position.y - 5, 3, 10, Color{ 255, 255, 255, 200 });
+        DrawRectangle(item.position.x - 5, item.position.y - 1.5f, 10, 3, Color{ 255, 255, 255, 200 });
+    } 
+    else if (item.type == ITEM_GOLDFLOWER) {
+        DrawCircleV(item.position, 7, Color{ 245, 158, 11, 110 });
+        DrawCircleV(item.position, 4, Color{ 253, 224, 71, 255 });
+        DrawCircle(item.position.x, item.position.y, 1.5f, Color{ 255, 255, 255, 255 });
+    }
+}
+
+// Слизень: глянцевое тело, блики, глаза следят за направлением
+void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bgDark) {
+    if (!slime.active) return;
+    
+    // Деформация тела (пружинистый прыжок)
+    float bounce = sinf(framesCounter * 0.16f + slime.id) * 3.2f;
+    float rx = 15.5f + bounce * 0.5f;
+    float ry = 12.5f - bounce * 0.5f;
+    
+    Vector2 slimePos = { slime.position.x, slime.position.y + bounce * 0.4f };
+    
+    // Тень под слизнем
+    DrawEllipse(slime.position.x, slime.position.y + 10, rx * 0.85f, 4, Color{ 0, 0, 0, 110 });
+    
+    Color sColor = Color{ 34, 197, 94, 255 };
+    Color sGlow = Color{ 74, 222, 128, 160 };
+    Color sOutline = Color{ 20, 83, 45, 255 };
+    Color sMid = Color{ 22, 163, 74, 255 };
+    
+    if (slime.speed > 60.0f) {
+        sColor = Color{ 220, 38, 38, 255 };
+        sGlow = Color{ 248, 113, 113, 160 };
+        sOutline = Color{ 127, 29, 29, 255 };
+        sMid = Color{ 185, 28, 28, 255 };
+    }
+    
+    // Чёткая обводка (внешний контур)
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx + 1, ry + 1, Color{ 0, 0, 0, 180 });
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx, ry, sOutline);
+    // Основное тело
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 2, ry - 2, sColor);
+    // Внутренний градиент
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 4, ry - 4, sMid);
+    // Желеобразное свечение
+    DrawEllipse((int)slimePos.x, (int)slimePos.y, rx - 5, ry - 5, ColorAlpha(sGlow, 0.5f));
+    
+    // Большой глянцевый блик (свет сверху-слева)
+    DrawEllipse((int)slimePos.x - rx * 0.28f, (int)slimePos.y - ry * 0.35f, rx * 0.28f, ry * 0.2f, Color{ 255, 255, 255, 220 });
+    // Маленький дополнительный блик
+    DrawEllipse((int)slimePos.x + rx * 0.15f, (int)slimePos.y - ry * 0.15f, rx * 0.1f, ry * 0.08f, Color{ 255, 255, 255, 140 });
+    
+    // Направление взгляда
+    float eyeShiftX = 0.0f;
+    Vector2 dirVec = { slime.targetPosition.x - slime.position.x, slime.targetPosition.y - slime.position.y };
+    float d = sqrtf(dirVec.x * dirVec.x + dirVec.y * dirVec.y);
+    if (d > 4.0f) {
+        eyeShiftX = (dirVec.x / d) * 2.0f;
+    }
+    
+    Vector2 leftEye = { slimePos.x - 5 + eyeShiftX, slimePos.y - 1 };
+    Vector2 rightEye = { slimePos.x + 5 + eyeShiftX, slimePos.y - 1 };
+    
+    // Белки глаз с чёткой обводкой
+    DrawCircleV(leftEye, 3.0f, Color{ 0, 0, 0, 200 });
+    DrawCircleV(rightEye, 3.0f, Color{ 0, 0, 0, 200 });
+    DrawCircleV(leftEye, 2.5f, Color{ 255, 255, 255, 255 });
+    DrawCircleV(rightEye, 2.5f, Color{ 255, 255, 255, 255 });
+    // Зрачки
+    DrawCircleV(leftEye, 1.2f, bgDark);
+    DrawCircleV(rightEye, 1.2f, bgDark);
+    // Блики на глазах
+    DrawCircleV(Vector2{ leftEye.x - 0.5f, leftEye.y - 0.8f }, 0.6f, Color{ 255, 255, 255, 230 });
+    DrawCircleV(Vector2{ rightEye.x - 0.5f, rightEye.y - 0.8f }, 0.6f, Color{ 255, 255, 255, 230 });
+}

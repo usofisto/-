@@ -401,7 +401,7 @@ void DrawWanderingSlime(const WanderingSlime& slime, int framesCounter, Color bg
         Rectangle source = { 0.0f, 0.0f, (float)tex.width, (float)tex.height };
         if (slime.targetPosition.x < slime.position.x) source.width = -source.width;
         
-        float scaleX = 36.0f * (1.0f + squish); // Уменьшил размер слизня
+        float scaleX = 36.0f * (1.0f + squish); // Текстура 48px, рендерим 36px
         float scaleY = 36.0f * (1.0f - squish);
         Rectangle dest = { renderPos.x, renderPos.y, scaleX, scaleY };
         Vector2 origin = { scaleX / 2.0f, scaleY / 2.0f };

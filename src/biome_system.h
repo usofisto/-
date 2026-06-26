@@ -1,6 +1,6 @@
 #pragma once
+#include "raylib.h"
 #include <string>
-#include <vector>
 #include <cmath>
 
 enum BiomeType {
@@ -14,56 +14,89 @@ enum BiomeType {
 
 struct BiomeInfo {
     BiomeType type;
-    std::string name;
-    std::string grassPrefix;
-    std::string treePrefix;
-    int grassCount;
-    int treeCount;
-    unsigned char baseR, baseG, baseB; // Base ground color
+    const char* name;
+    Color tintColor;      // Tint applied to all textures in this biome
+    Color groundColor;    // Base ground color
+    Color grassTint;      // Tint for grass textures
+    float tintStrength;   // How strong the tint is (0-1)
 };
 
-// Biome definitions
+// Biome definitions with color tints
 inline const BiomeInfo BIOMES[] = {
-    {BIOME_FOREST, "Лес",    "forest/grass_",  "forest/tree_",  5, 3, 34, 85, 44},
-    {BIOME_DESERT, "Пустыня","desert/grass_",   "desert/tree_",  5, 3, 180, 150, 90},
-    {BIOME_SNOW,   "Снег",   "snow/grass_",     "snow/tree_",    5, 3, 200, 210, 220},
-    {BIOME_SWAMP,  "Болото", "swamp/grass_",    "swamp/tree_",   5, 3, 50, 65, 35},
-    {BIOME_MEADOW, "Луга",   "meadow/grass_",   "meadow/tree_",  5, 3, 60, 130, 50},
+    // Forest - green, natural
+    {BIOME_FOREST, "Лес", 
+     Color{100, 200, 120, 40},   // light green tint
+     Color{34, 85, 44, 255},     // dark green ground
+     Color{80, 180, 100, 50},    // grass tint
+     0.3f},
+    
+    // Desert - sandy, warm
+    {BIOME_DESERT, "Пустыня",
+     Color{220, 180, 100, 60},   // sandy tint
+     Color{180, 150, 90, 255},   // sandy ground
+     Color{200, 170, 80, 70},    // dry grass tint
+     0.4f},
+    
+    // Snow - cold, blue-white
+    {BIOME_SNOW, "Снег",
+     Color{200, 220, 240, 80},   // cold blue tint
+     Color{210, 220, 230, 255},  // white ground
+     Color{180, 200, 220, 90},   // snowy grass tint
+     0.5f},
+    
+    // Swamp - dark, murky
+    {BIOME_SWAMP, "Болото",
+     Color{60, 80, 40, 70},      // dark murky tint
+     Color{40, 55, 30, 255},     // dark ground
+     Color{50, 70, 35, 80},      // murky grass tint
+     0.4f},
+    
+    // Meadow - bright, colorful
+    {BIOME_MEADOW, "Луга",
+     Color{120, 200, 80, 30},    // bright green tint
+     Color{60, 130, 50, 255},    // bright green ground
+     Color{100, 190, 70, 40},    // fresh grass tint
+     0.25f},
 };
 
-// Get biome at world position using a more organic distribution
-// World is 2000x2000, divided into 5 regions with soft borders
+// Simple noise function for organic borders
+inline float SimpleNoise(float x, float y) {
+    float n = sinf(x * 12.9898f + y * 78.233f) * 43758.5453f;
+    return n - floorf(n);
+}
+
+// Get biome at world position with smooth transitions
+// World is 3000x3000
 inline BiomeType GetBiomeAtPosition(float worldX, float worldY) {
     // Normalize to 0-1
-    float nx = worldX / 2000.0f;
-    float ny = worldY / 2000.0f;
+    float nx = worldX / 3000.0f;
+    float ny = worldY / 3000.0f;
     
-    // Create biome zones using distance from key points
-    // Each biome has a "center" and we pick the closest one
-    
-    // Biome centers (x, y)
+    // Biome centers for Voronoi-like distribution
     struct Vec2 { float x, y; };
     const Vec2 centers[BIOME_COUNT] = {
-        {0.25f, 0.25f},  // Forest - top-left
-        {0.75f, 0.25f},  // Desert - top-right
-        {0.75f, 0.75f},  // Snow - bottom-right
-        {0.25f, 0.75f},  // Swamp - bottom-left
-        {0.50f, 0.50f},  // Meadow - center
+        {0.2f, 0.2f},   // Forest - top-left
+        {0.8f, 0.2f},   // Desert - top-right
+        {0.8f, 0.8f},   // Snow - bottom-right
+        {0.2f, 0.8f},   // Swamp - bottom-left
+        {0.5f, 0.5f},   // Meadow - center
     };
+    
+    // Add noise to create organic borders
+    float noiseX = SimpleNoise(nx * 3.0f, ny * 3.0f) * 0.15f;
+    float noiseY = SimpleNoise(nx * 3.0f + 100.0f, ny * 3.0f + 100.0f) * 0.15f;
+    
+    float testX = nx + noiseX;
+    float testY = ny + noiseY;
     
     // Find closest biome center
     float minDist = 1e9f;
     int closest = 0;
     
     for (int i = 0; i < BIOME_COUNT; i++) {
-        float dx = nx - centers[i].x;
-        float dy = ny - centers[i].y;
+        float dx = testX - centers[i].x;
+        float dy = testY - centers[i].y;
         float dist = sqrtf(dx*dx + dy*dy);
-        
-        // Add some noise-like variation based on position
-        // This creates more organic borders
-        float noise = sinf(nx * 6.28f + i * 1.5f) * cosf(ny * 6.28f + i * 2.3f) * 0.08f;
-        dist += noise;
         
         if (dist < minDist) {
             minDist = dist;
@@ -77,4 +110,14 @@ inline BiomeType GetBiomeAtPosition(float worldX, float worldY) {
 // Get biome info
 inline const BiomeInfo& GetBiomeInfo(BiomeType type) {
     return BIOMES[(int)type];
+}
+
+// Apply biome tint to a color
+inline Color ApplyBiomeTint(Color original, Color tint, float strength) {
+    Color result;
+    result.r = (unsigned char)(original.r * (1.0f - strength) + tint.r * strength);
+    result.g = (unsigned char)(original.g * (1.0f - strength) + tint.g * strength);
+    result.b = (unsigned char)(original.b * (1.0f - strength) + tint.b * strength);
+    result.a = original.a;
+    return result;
 }

@@ -190,7 +190,7 @@ int main() {
     Color textGray = Color{ 156, 163, 175, 255 };
 
     // Позиция игрока
-    Vector2 playerPos = { 1000.0f, 1000.0f };
+    Vector2 playerPos = { 1500.0f, 1500.0f };
     Vector2 playerFacing = { 0.0f, 1.0f };
     float playerSpeed = 190.0f;
     float playerRadius = 12.0f;
@@ -215,9 +215,9 @@ int main() {
     Color grassTiles[20][20];
 
     // Объекты лагеря
-    Vector2 campfirePos = { 960.0f, 1000.0f };
-    Vector2 tentPos = { 1040.0f, 985.0f };
-    Vector2 lakePos = { 400.0f, 400.0f };
+    Vector2 campfirePos = { 1460.0f, 1000.0f };
+    Vector2 tentPos = { 1540.0f, 985.0f };
+    Vector2 lakePos = { 600.0f, 400.0f };
     float lakeRadius = 150.0f;
 
     // Бой
@@ -251,7 +251,7 @@ int main() {
     auto InitWorldEntities = [&]() {
         trees.clear(); rocks.clear(); ruins.clear();
         mapItems.clear(); slimes.clear(); floatingTexts.clear(); miniLog.clear();
-        playerPos = Vector2{ 1000.0f, 1000.0f };
+        playerPos = Vector2{ 1500.0f, 1500.0f };
         playerFacing = Vector2{ 0.0f, 1.0f };
         camera.target = playerPos;
         survivalStats.health = player.maxHealth;
@@ -276,7 +276,7 @@ int main() {
             Vector2 pos;
             while (true) {
                 pos = {(float)(100+rand()%1800),(float)(100+rand()%1800)};
-                float dc = sqrtf(powf(pos.x-1000,2)+powf(pos.y-1000,2));
+                float dc = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
                 float dl = sqrtf(powf(pos.x-lakePos.x,2)+powf(pos.y-lakePos.y,2));
                 if (dc>250 && dl>(lakeRadius+30)) break;
             }
@@ -296,7 +296,7 @@ int main() {
         while (trees.size() < 40 && attempts < 800) {
             attempts++;
             Vector2 c = {(float)(50+rand()%1900),(float)(50+rand()%1900)};
-            float dc = sqrtf(powf(c.x-1000,2)+powf(c.y-1000,2));
+            float dc = sqrtf(powf(c.x-1500,2)+powf(c.y-1500,2));
             float dl = sqrtf(powf(c.x-lakePos.x,2)+powf(c.y-lakePos.y,2));
             if (dc<220 || dl<(lakeRadius+25)) continue;
             bool bad = false;
@@ -322,14 +322,14 @@ int main() {
             Vector2 pos;
             while (true) {
                 pos = {(float)(80+rand()%1840),(float)(80+rand()%1840)};
-                float d = sqrtf(powf(pos.x-1000,2)+powf(pos.y-1000,2));
+                float d = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
                 float dl = sqrtf(powf(pos.x-lakePos.x,2)+powf(pos.y-lakePos.y,2));
                 if (d>200 && dl>(lakeRadius+20)) break;
             }
             mapItems.push_back({pos, ITEM_HERB, true, 0.0f});
             while (true) {
                 pos = {(float)(80+rand()%1840),(float)(80+rand()%1840)};
-                float d = sqrtf(powf(pos.x-1000,2)+powf(pos.y-1000,2));
+                float d = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
                 float dl = sqrtf(powf(pos.x-lakePos.x,2)+powf(pos.y-lakePos.y,2));
                 if (d>200 && dl>(lakeRadius+20)) break;
             }
@@ -341,7 +341,7 @@ int main() {
             Vector2 pos;
             while (true) {
                 pos = {(float)(100+rand()%1800),(float)(100+rand()%1800)};
-                float d = sqrtf(powf(pos.x-1000,2)+powf(pos.y-1000,2));
+                float d = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
                 float dl = sqrtf(powf(pos.x-lakePos.x,2)+powf(pos.y-lakePos.y,2));
                 if (d>260 && dl>(lakeRadius+30)) break;
             }
@@ -452,7 +452,7 @@ int main() {
                     // Столкновения по X
                     Vector2 nx = {playerPos.x+sx, playerPos.y};
                     bool cx = false;
-                    if (nx.x<15||nx.x>1985) cx=true;
+                    if (nx.x<15||nx.x>2985) cx=true;
                     for (auto& t:trees) if (t.active && sqrtf(powf(nx.x-t.position.x,2)+powf(nx.y-t.position.y,2))<(playerRadius+t.radius*0.4f)){cx=true;break;}
                     for (auto& r:rocks) if (r.active && sqrtf(powf(nx.x-r.position.x,2)+powf(nx.y-r.position.y,2))<(playerRadius+r.radius*0.5f)){cx=true;break;}
                     for (auto& w:ruins) if (CheckCollisionCircleRec(nx,playerRadius,w.rect)){cx=true;break;}
@@ -462,7 +462,7 @@ int main() {
                     // Столкновения по Y
                     Vector2 ny = {playerPos.x, playerPos.y+sy};
                     bool cy = false;
-                    if (ny.y<15||ny.y>1985) cy=true;
+                    if (ny.y<15||ny.y>2985) cy=true;
                     for (auto& t:trees) if (t.active && sqrtf(powf(ny.x-t.position.x,2)+powf(ny.y-t.position.y,2))<(playerRadius+t.radius*0.4f)){cy=true;break;}
                     for (auto& r:rocks) if (r.active && sqrtf(powf(ny.x-r.position.x,2)+powf(ny.y-r.position.y,2))<(playerRadius+r.radius*0.5f)){cy=true;break;}
                     for (auto& w:ruins) if (CheckCollisionCircleRec(ny,playerRadius,w.rect)){cy=true;break;}
@@ -592,8 +592,8 @@ int main() {
                         float a=(float)(rand()%360)*3.14159f/180;
                         float r=70+rand()%100;
                         s.targetPosition={s.position.x+cosf(a)*r, s.position.y+sinf(a)*r};
-                        s.targetPosition.x=std::max(50.f,std::min(1950.f,s.targetPosition.x));
-                        s.targetPosition.y=std::max(50.f,std::min(1950.f,s.targetPosition.y));
+                        s.targetPosition.x=std::max(50.f,std::min(2950.f,s.targetPosition.x));
+                        s.targetPosition.y=std::max(50.f,std::min(2950.f,s.targetPosition.y));
                         float dc=sqrtf(powf(s.targetPosition.x-1000,2)+powf(s.targetPosition.y-1000,2));
                         float dl=sqrtf(powf(s.targetPosition.x-lakePos.x,2)+powf(s.targetPosition.y-lakePos.y,2));
                         if (dc<250||dl<(lakeRadius+20)) s.targetPosition=s.position;
@@ -785,10 +785,10 @@ int main() {
                     float worldY = ty * 100.0f + 50.0f;
                     BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
                     const BiomeInfo& info = GetBiomeInfo(tileBiome);
-                    DrawRectangle(tx*100, ty*100, 100, 100, Color{info.baseR, info.baseG, info.baseB, 255});
+                    DrawRectangle(tx*100, ty*100, 100, 100, info.groundColor);
                 }
                 
-                // Трава (биомные чанки)
+                // Трава (биомные чанки с тонировкой)
                 for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
                     // Определяем биом по позиции тайла
                     float worldX = tx * 100.0f + 50.0f;
@@ -796,22 +796,18 @@ int main() {
                     BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
                     const BiomeInfo& biomeInfo = GetBiomeInfo(tileBiome);
                     
-                    // Используем уникальный чанк травы для биома
-                    int grassIdx = ((tx * 7 + ty * 13) % biomeInfo.grassCount) + 1;
-                    std::string grassKey = biomeInfo.grassPrefix + std::to_string(grassIdx);
+                    // Используем оригинальную траву с вариацией
+                    int grassIdx = ((tx * 7 + ty * 13) % 10) + 1;
+                    std::string grassKey = "grass_" + std::to_string(grassIdx);
                     Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
-                    if (grassTex.id == 0) {
-                        // Фоллбэк на общую траву
-                        grassKey = "grass_" + std::to_string(grassIdx);
-                        grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
-                    }
                     if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass");
                     if (grassTex.id != 0) {
-                        // Масштабируем текстуру под размер тайла 100x100
-                        float scale = 100.0f / grassTex.width;
-                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, scale, WHITE);
+                        // Применяем тонировку биома
+                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, 1.0f, biomeInfo.grassTint);
                     }
-                    else { DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); DrawRectangleLines(tx*100,ty*100,100,100,Color{20,85,40,30}); }
+                    else { 
+                        DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); 
+                    }
                 }
 
                 // Цветочки
@@ -888,19 +884,13 @@ int main() {
                 for (auto& t : trees) {
                     if (!t.active) continue;
                     
-                    // Определяем биом и текстуру дерева
+                    // Определяем биом для тонировки
                     BiomeType biome = (BiomeType)t.biomeType;
                     const BiomeInfo& info = GetBiomeInfo(biome);
                     
-                    // Сначала пробуем биомную текстуру, потом общую
-                    int treeVariant = (t.treeType % info.treeCount) + 1;
-                    std::string treeKey = info.treePrefix + std::to_string(treeVariant);
+                    // Используем оригинальные текстуры деревьев
+                    std::string treeKey = "tree_" + std::to_string(t.treeType);
                     Texture2D treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
-                    if (treeTex.id == 0) {
-                        // Фоллбэк на общие текстуры
-                        treeKey = "tree_" + std::to_string(t.treeType);
-                        treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
-                    }
                     if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree");
 
                     // Позиция с дрожанием
@@ -908,10 +898,11 @@ int main() {
                     if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
 
                     if (treeTex.id != 0) {
-                        float scale = 1.0f; // Текстуры уже обрезаны до нужного размера
+                        float scale = 1.0f;
                         float tw = treeTex.width * scale;
                         float th = treeTex.height * scale;
-                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
+                        // Применяем тонировку биома
+                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, info.tintColor);
                     } else {
                         DrawEllipse(t.position.x+offX,t.position.y+24,12,5,Color{0,0,0,100});
                         DrawTree({t.position.x+offX, t.position.y}, t.radius);

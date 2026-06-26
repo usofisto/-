@@ -10,6 +10,7 @@
 #include "player.h"
 #include "biom.h"
 #include "biome_system.h"
+#include "game_systems.h"
 #include "particles.h"
 #include "gui.h"
 #include "render.h"
@@ -178,6 +179,11 @@ int main() {
 
     GameMenu gameMenu;
     CraftingSystem craftingSystem;
+    FarmingSystem farmingSystem;
+    WeatherController weatherController;
+    QuestController questController;
+    TradingSystem tradingSystem;
+    FishingController fishingController;
     SurvivalStats survivalStats;
     DayNightCycle dayNightCycle;
     bool showInventory = false;
@@ -353,6 +359,62 @@ int main() {
             s.slimeType = 1 + rand()%3; // 3 вида слизней
             slimes.push_back(s);
         }
+        
+        // Инициализация новых систем
+        farmingSystem.plots.clear();
+        // Добавляем фермерские грядки рядом с лагерем
+        for (int i = 0; i < 6; i++) {
+            farmingSystem.AddPlot(Vector2{1500.0f + (i % 3) * 40.0f, 1560.0f + (i / 3) * 40.0f});
+        }
+        
+        // Инициализация торговца
+        tradingSystem.InitMerchant(Vector2{1400.0f, 1500.0f});
+        
+        // Инициализация рыбацких точек
+        fishingController.spots.clear();
+        fishingController.AddSpot(Vector2{lakePos.x + 100, lakePos.y});
+        fishingController.AddSpot(Vector2{lakePos.x - 100, lakePos.y});
+        fishingController.AddSpot(Vector2{lakePos.x, lakePos.y + 100});
+        
+        // Генерация квестов
+        questController.GenerateDailyQuests(dayNightCycle.dayCount);
+        
+        // Волки (появляются с 3 дня)
+        if (dayNightCycle.dayCount >= 3) {
+            for (int i = 0; i < 3; i++) {
+                Vector2 pos;
+                while (true) {
+                    pos = {(float)(200+rand()%2600),(float)(200+rand()%2600)};
+                    float d = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
+                    if (d > 400) break;
+                }
+                Wolf w;
+                w.position = pos; w.targetPosition = pos;
+                w.wanderTimer = 0; w.speed = 60.0f;
+                w.maxHp = 40 + dayNightCycle.dayCount * 5;
+                w.hp = w.maxHp; w.damage = 8;
+                w.active = true; w.isChasing = false;
+                w.attackCooldown = 0;
+            }
+        }
+        
+        // Скелеты (ночные враги)
+        if (dayNightCycle.dayCount >= 2) {
+            for (int i = 0; i < 2; i++) {
+                Vector2 pos;
+                while (true) {
+                    pos = {(float)(200+rand()%2600),(float)(200+rand()%2600)};
+                    float d = sqrtf(powf(pos.x-1500,2)+powf(pos.y-1500,2));
+                    if (d > 500) break;
+                }
+                Skeleton sk;
+                sk.position = pos; sk.targetPosition = pos;
+                sk.wanderTimer = 0; sk.speed = 35.0f;
+                sk.maxHp = 50 + dayNightCycle.dayCount * 8;
+                sk.hp = sk.maxHp; sk.damage = 12;
+                sk.active = true; sk.attackCooldown = 0;
+            }
+        }
     };
 
     // ==================== ГЛАВНЫЙ ЦИКЛ ====================
@@ -418,6 +480,19 @@ int main() {
 
             // Обновление дня/ночи
             dayNightCycle.Update(dt);
+            
+            // Обновление новых систем
+            farmingSystem.Update(dt);
+            float weatherSpeedMod = 1.0f;
+            int currentBiome = (int)GetBiomeAtPosition(playerPos.x, playerPos.y);
+            weatherController.Update(dt, currentBiome, weatherSpeedMod);
+            fishingController.Update(dt);
+            player.UpdateEffects(dt);
+            
+            // Проверка квестов
+            if (dayNightCycle.dayCount != questController.quests.dailyQuests.size()) {
+                questController.GenerateDailyQuests(dayNightCycle.dayCount);
+            }
 
             // Голод
             survivalStats.hungerTimer -= dt;
@@ -496,8 +571,8 @@ int main() {
                 }
 
                 // ==================== ДОБЫЧА РЕСУРСОВ [E] ====================
+                bool gathered = false;
                 if (IsKeyPressed(KEY_E)) {
-                    bool gathered = false;
 
                     // Добыча дерева
                     for (auto& t : trees) {
@@ -520,6 +595,8 @@ int main() {
                                 std::stringstream ss; ss<<"+"<<amt<<" Дерево";
                                 floatingTexts.push_back({ss.str(), Vector2{t.position.x,t.position.y-20}, Color{139,90,43,255}, 1,-40,1.2f,true});
                                 AddLogMessage("Срубил дерево, +"+std::to_string(amt)+" дерева.", miniLog);
+                                player.levelSystem.AddXP(10);
+                                questController.UpdateQuest(QUEST_GATHER_WOOD);
                             } else {
                                 std::stringstream ss; ss<<"-1 HP ("<<t.hp<<"/"<<t.maxHp<<")";
                                 floatingTexts.push_back({ss.str(), Vector2{t.position.x,t.position.y-20}, Color{200,200,200,255}, 1,-40,1.0f,true});
@@ -550,6 +627,8 @@ int main() {
                                     std::stringstream ss; ss<<"+"<<amt<<" Камень";
                                     floatingTexts.push_back({ss.str(), Vector2{r.position.x,r.position.y-20}, Color{156,163,175,255}, 1,-40,1.2f,true});
                                     AddLogMessage("Выбил камень, +"+std::to_string(amt)+" камня.", miniLog);
+                                    player.levelSystem.AddXP(10);
+                                    questController.UpdateQuest(QUEST_GATHER_STONE);
                                 } else {
                                     std::stringstream ss; ss<<"-1 HP ("<<r.hp<<"/"<<r.maxHp<<")";
                                     floatingTexts.push_back({ss.str(), Vector2{r.position.x,r.position.y-20}, Color{200,200,200,255}, 1,-40,1.0f,true});
@@ -558,6 +637,74 @@ int main() {
                                 break;
                             }
                         }
+                    }
+                }
+                
+                // ==================== ФЕРМЕРСТВО [E] ====================
+                if (!gathered && IsKeyPressed(KEY_E)) {
+                    // Собрать урожай
+                    if (farmingSystem.Harvest(playerPos, player)) {
+                        AddLogMessage("Собрал урожай!", miniLog);
+                        floatingTexts.push_back({"+Урожай", playerPos, Color{34,197,94,255}, 1,-40,1.2f,true});
+                        gathered = true;
+                    }
+                    // Посадить семена (если есть)
+                    else if (player.CountItems(ITEM_SEED_WHEAT) > 0) {
+                        if (farmingSystem.PlantSeed(playerPos, CROP_WHEAT, player)) {
+                            AddLogMessage("Посадил пшеницу.", miniLog);
+                            gathered = true;
+                        }
+                    }
+                    else if (player.CountItems(ITEM_SEED_CARROT) > 0) {
+                        if (farmingSystem.PlantSeed(playerPos, CROP_CARROT, player)) {
+                            AddLogMessage("Посадил морковь.", miniLog);
+                            gathered = true;
+                        }
+                    }
+                    else if (player.CountItems(ITEM_SEED_POTATO) > 0) {
+                        if (farmingSystem.PlantSeed(playerPos, CROP_POTATO, player)) {
+                            AddLogMessage("Посадил картошку.", miniLog);
+                            gathered = true;
+                        }
+                    }
+                }
+                
+                // ==================== РЫБАЛКА [F] ====================
+                if (IsKeyPressed(KEY_F)) {
+                    if (fishingController.isFishing) {
+                        if (fishingController.TryCatch()) {
+                            player.AddItem(ITEM_FISH);
+                            player.levelSystem.AddXP(15);
+                            AddLogMessage("Поймал рыбу! +15 XP", miniLog);
+                            floatingTexts.push_back({"+Рыба", playerPos, Color{100,150,255,255}, 1,-40,1.2f,true});
+                            questController.UpdateQuest(QUEST_FISH);
+                        }
+                    } else {
+                        if (fishingController.StartFishing(playerPos)) {
+                            AddLogMessage("Забросил удочку...", miniLog);
+                        }
+                    }
+                }
+                
+                // ==================== ТОРГОВЛЯ [T] ====================
+                if (IsKeyPressed(KEY_T)) {
+                    if (tradingSystem.IsNearMerchant(playerPos)) {
+                        // Простая торговля - купить зелье HP за золото
+                        if (player.gold >= 40) {
+                            player.gold -= 40;
+                            player.AddItem(ITEM_POTION_HP);
+                            AddLogMessage("Купил зелье HP за 40 золота.", miniLog);
+                            floatingTexts.push_back({"+Зелье HP", playerPos, Color{239,68,68,255}, 1,-40,1.2f,true});
+                        } else {
+                            AddLogMessage("Недостаточно золота! Нужно 40.", miniLog);
+                        }
+                    }
+                }
+                
+                // ==================== ПОЛИВКА [R] ====================
+                if (IsKeyPressed(KEY_R)) {
+                    if (farmingSystem.WaterPlot(playerPos)) {
+                        AddLogMessage("Полил грядку.", miniLog);
                     }
                 }
 
@@ -1222,7 +1369,7 @@ int main() {
                             slashEffectTimer=0.2f; screenShakeIntensity=7;
                             std::stringstream sd; sd<<"-"<<dmg;
                             floatingTexts.push_back({sd.str(),{sc.x,sc.y-30},Color{253,224,71,255},1,-40,1.2f,true});
-                            if (slimeHp<=0) { int gr=15+rand()%16; player.gold+=gr; combatLog.push_back("Слизь разлетелась! +"+std::to_string(gr)+" золота."); if (activeSlimeIndex!=-1) slimes[activeSlimeIndex].active=false; combatTurnState=2; combatTimer=0; }
+                            if (slimeHp<=0) { int gr=15+rand()%16; player.gold+=gr; player.levelSystem.AddXP(25); questController.UpdateQuest(QUEST_KILL_SLIMES); combatLog.push_back("Слизь разлетелась! +"+std::to_string(gr)+" золота. +25 XP"); if (activeSlimeIndex!=-1) slimes[activeSlimeIndex].active=false; combatTurnState=2; combatTimer=0; }
                             else { combatTurnState=1; combatTimer=0; }
                         }
                         if (DrawButton(font,{ccR.x+280,ccR.y+35,220,50},"Приручить",Color{16,185,129,255},Color{52,211,153,255},Color{4,120,87,255},textWhite)) {

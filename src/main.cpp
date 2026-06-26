@@ -15,6 +15,7 @@
 #include "gui.h"
 #include "render.h"
 #include "resource_manager.h"
+#include "hud_renderer.h"
 #include "menu.h"
 #include "crafting.h"
 
@@ -960,8 +961,8 @@ int main() {
                 // Цветочки
                 srand(2345);
                 for (int i=0;i<50;++i) {
-                    int fx=rand()%2000, fy=rand()%2000;
-                    float dc=sqrtf(powf(fx-1000.f,2)+powf(fy-1000.f,2));
+                    int fx=rand()%3000, fy=rand()%3000;
+                    float dc=sqrtf(powf(fx-1500.f,2)+powf(fy-1500.f,2));
                     float dl=sqrtf(powf(fx-lakePos.x,2)+powf(fy-lakePos.y,2));
                     if (dc>160&&dl>(lakeRadius+15)) {
                         Color fc=(rand()%2==0)?Color{244,114,182,160}:Color{253,224,71,160};
@@ -970,12 +971,12 @@ int main() {
                 }
 
                 // Дороги
-                DrawCircle(1000,1000,150,Color{63,63,70,255});
-                DrawCircleLines(1000,1000,150,Color{82,82,91,255});
+                DrawCircle(1500,1500,150,Color{63,63,70,255});
+                DrawCircleLines(1500,1500,150,Color{82,82,91,255});
                 DrawLineEx(campfirePos,tentPos,22,Color{82,82,91,255});
                 DrawLineEx(campfirePos,tentPos,18,Color{113,113,122,255});
-                DrawLineEx(Vector2{1000,1000},Vector2{1200,1010},24,Color{82,82,91,255});
-                DrawLineEx(Vector2{1000,1000},Vector2{1200,1010},20,Color{113,113,122,255});
+                DrawLineEx(Vector2{1500,1500},Vector2{1700,1510},24,Color{82,82,91,255});
+                DrawLineEx(Vector2{1500,1500},Vector2{1700,1510},20,Color{113,113,122,255});
 
                 // Палатка
                 DrawTent(tentPos);
@@ -1405,74 +1406,15 @@ int main() {
 
             // ==================== HUD ====================
             if (state!=STATE_WELCOME&&state!=STATE_CLASS_SELECT&&state!=STATE_GAME_OVER) {
-                DrawRectangle(0,0,GetScreenWidth(),95,bgPanel);
-                DrawLine(0,95,GetScreenWidth(),95,Color{48,54,68,255});
-
-                // Имя и класс
-                std::string pt=player.name+" ("+player.className+")";
-                DrawTextEx(font,pt.c_str(),{30,12},20,1,textWhite);
-
-                // ===== HP: сердечки в стиле Minecraft =====
-                int fullHearts = survivalStats.health / 2;
-                bool halfHeart = (survivalStats.health % 2) != 0;
-                for (int i = 0; i < 10; i++) {
-                    float hx = 30.0f + i * 22.0f;
-                    if (i < fullHearts)
-                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{239,68,68,255});
-                    else if (i == fullHearts && halfHeart)
-                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{239,68,68,128});
-                    else
-                        DrawTextEx(font, "\xe2\x99\xa5", {hx, 40}, 18, 1, Color{80,80,80,255});
-                }
-                // Числовое значение
-                std::stringstream ssH; ssH<<survivalStats.health<<"/"<<survivalStats.maxHealth;
-                DrawTextEx(font,ssH.str().c_str(),{260,42},14,1,textWhite);
-
-                // ===== ГОЛОД: шампурики в стиле Minecraft =====
-                int fullHunger = survivalStats.hunger / 2;
-                bool halfHunger = (survivalStats.hunger % 2) != 0;
-                for (int i = 0; i < 10; i++) {
-                    float hx2 = 30.0f + i * 22.0f;
-                    if (i < fullHunger)
-                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{210,170,60,255});
-                    else if (i == fullHunger && halfHunger)
-                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{210,170,60,128});
-                    else
-                        DrawTextEx(font, "\xf0\x9f\x8d\x96", {hx2, 65}, 18, 1, Color{80,80,80,255});
-                }
-
-                // Статистики
-                DrawTextEx(font,("Урон: "+std::to_string(player.damage)).c_str(),{300,12},16,1,textWhite);
-                DrawTextEx(font,("Золото: "+std::to_string(player.gold)).c_str(),{450,12},16,1,Color{245,158,11,255});
-
-                // Время суток и подсказки
-                if (state==STATE_2D_WORLD) {
-                    int h=(int)dayNightCycle.timeOfDay, m=(int)((dayNightCycle.timeOfDay-h)*60);
-                    std::stringstream ssT; ssT<<(h<10?"0":"")<<h<<":"<<(m<10?"0":"")<<m;
-                    const char* ph[]={"Утро","День","Вечер","Ночь"};
-                    DrawTextEx(font,ssT.str().c_str(),{580,12},16,1,textWhite);
-                    DrawTextEx(font,ph[dayNightCycle.currentPhase],{650,12},14,1,dayNightCycle.currentPhase==DAY_NIGHT?Color{100,149,237,255}:textWhite);
-                    DrawTextEx(font,"[WASD] бег  [E] добыча  [I] инв.  [C] крафт  [F11] fullscreen", {300,75}, 13, 1, textGray);
-
-                    // ===== МИНИ-КАРТА =====
-                    float mmSize=120, mmX=GetScreenWidth()-mmSize-15, mmY=10;
-                    float mmScale=mmSize/2000.0f;
-                    DrawRectangle(mmX-2,mmY-2,mmSize+4,mmSize+4,Color{40,40,50,220});
-                    DrawRectangle(mmX,mmY,mmSize,mmSize,Color{30,70,35,200});
-                    // Озеро
-                    DrawCircle(mmX+lakePos.x*mmScale, mmY+lakePos.y*mmScale, lakeRadius*mmScale, Color{40,100,170,180});
-                    // Деревья
-                    for (auto& t:trees) if (t.active) DrawCircle(mmX+t.position.x*mmScale, mmY+t.position.y*mmScale, 2, Color{60,130,60,200});
-                    // Камни
-                    for (auto& r:rocks) if (r.active) DrawCircle(mmX+r.position.x*mmScale, mmY+r.position.y*mmScale, 2, Color{130,130,140,200});
-                    // Слизни
-                    for (auto& s:slimes) if (s.active) DrawCircle(mmX+s.position.x*mmScale, mmY+s.position.y*mmScale, 2, Color{200,50,50,200});
-                    // Лагерь
-                    DrawCircle(mmX+campfirePos.x*mmScale, mmY+campfirePos.y*mmScale, 3, Color{245,158,11,255});
-                    // Игрок
-                    DrawCircle(mmX+playerPos.x*mmScale, mmY+playerPos.y*mmScale, 3, Color{255,255,255,255});
-                    DrawRectangleLines(mmX,mmY,mmSize,mmSize,Color{80,80,90,255});
-                }
+                DrawGameHUD(font, 
+                    survivalStats.health, survivalStats.maxHealth,
+                    survivalStats.hunger, survivalStats.maxHunger,
+                    player.levelSystem.xp, player.levelSystem.xpToNext,
+                    player.levelSystem.level, player.gold, player.damage,
+                    dayNightCycle.timeOfDay, dayNightCycle.dayCount,
+                    playerPos, lakePos, lakeRadius,
+                    campfirePos, tentPos,
+                    nullptr, nullptr, nullptr);
             }
         }
         EndDrawing();

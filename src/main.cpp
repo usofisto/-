@@ -9,6 +9,7 @@
 #include "game_types.h"
 #include "player.h"
 #include "biom.h"
+#include "biome_system.h"
 #include "particles.h"
 #include "gui.h"
 #include "render.h"
@@ -152,6 +153,23 @@ int main() {
     // Озеро
     ResourceManager::Get().LoadTex("lake", "assets/lake.png");
 
+    // ==================== ТЕКСТУРЫ БИОМОВ ====================
+    // Загружаем траву для каждого биома (5 видов на биом)
+    const char* biomeNames[] = {"forest", "desert", "snow", "swamp", "meadow"};
+    for (int b = 0; b < 5; b++) {
+        for (int i = 1; i <= 5; i++) {
+            std::string key = std::string(biomeNames[b]) + "/grass_" + std::to_string(i);
+            std::string path = "assets/" + key + ".png";
+            ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
+        }
+        // Загружаем деревья для каждого биома (3 вида на биом)
+        for (int i = 1; i <= 3; i++) {
+            std::string key = std::string(biomeNames[b]) + "/tree_" + std::to_string(i);
+            std::string path = "assets/" + key + ".png";
+            ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
+        }
+    }
+
     // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
     GameState state = STATE_MENU;
     Player player;
@@ -294,6 +312,7 @@ int main() {
                 ti.shakeTimer = 0.0f;
                 ti.respawnTimer = 0.0f;
                 ti.treeType = 1 + rand()%10; // 10 видов деревьев
+                ti.biomeType = (int)GetBiomeAtPosition(c.x, c.y); // Биом по позиции
                 trees.push_back(ti);
             }
         }
@@ -760,16 +779,33 @@ int main() {
             if (state==STATE_2D_WORLD) {
                 BeginMode2D(camera);
 
-                // Сначала рисуем зелёный фон для всего мира
-                DrawRectangle(0, 0, 2000, 2000, Color{34, 85, 44, 255});
-                
-                // Трава (уникальные чанки)
+                // Рисуем фон для каждого тайла с цветом биома
                 for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
-                    // Используем уникальный чанк травы для каждого тайла
-                    int grassIdx = ((tx * 7 + ty * 13) % 10) + 1; // детерминированный рандом
-                    std::string grassKey = "grass_" + std::to_string(grassIdx);
+                    float worldX = tx * 100.0f + 50.0f;
+                    float worldY = ty * 100.0f + 50.0f;
+                    BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
+                    const BiomeInfo& info = GetBiomeInfo(tileBiome);
+                    DrawRectangle(tx*100, ty*100, 100, 100, Color{info.baseR, info.baseG, info.baseB, 255});
+                }
+                
+                // Трава (биомные чанки)
+                for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
+                    // Определяем биом по позиции тайла
+                    float worldX = tx * 100.0f + 50.0f;
+                    float worldY = ty * 100.0f + 50.0f;
+                    BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
+                    const BiomeInfo& biomeInfo = GetBiomeInfo(tileBiome);
+                    
+                    // Используем уникальный чанк травы для биома
+                    int grassIdx = ((tx * 7 + ty * 13) % biomeInfo.grassCount) + 1;
+                    std::string grassKey = biomeInfo.grassPrefix + std::to_string(grassIdx);
                     Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
-                    if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass"); // фоллбэк
+                    if (grassTex.id == 0) {
+                        // Фоллбэк на общую траву
+                        grassKey = "grass_" + std::to_string(grassIdx);
+                        grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
+                    }
+                    if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass");
                     if (grassTex.id != 0) {
                         // Масштабируем текстуру под размер тайла 100x100
                         float scale = 100.0f / grassTex.width;
@@ -851,10 +887,21 @@ int main() {
                 // ==================== ДЕРЕВЬЯ (PNG) ====================
                 for (auto& t : trees) {
                     if (!t.active) continue;
-                    // Используем уникальную текстуру для каждого дерева
-                    std::string treeKey = "tree_" + std::to_string(t.treeType);
+                    
+                    // Определяем биом и текстуру дерева
+                    BiomeType biome = (BiomeType)t.biomeType;
+                    const BiomeInfo& info = GetBiomeInfo(biome);
+                    
+                    // Сначала пробуем биомную текстуру, потом общую
+                    int treeVariant = (t.treeType % info.treeCount) + 1;
+                    std::string treeKey = info.treePrefix + std::to_string(treeVariant);
                     Texture2D treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
-                    if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree"); // фоллбэк
+                    if (treeTex.id == 0) {
+                        // Фоллбэк на общие текстуры
+                        treeKey = "tree_" + std::to_string(t.treeType);
+                        treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
+                    }
+                    if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree");
 
                     // Позиция с дрожанием
                     float offX = 0;

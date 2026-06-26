@@ -37,6 +37,7 @@ struct TreeInfo {
     float shakeTimer;
     float respawnTimer;
     int treeType; // 1-10 for unique textures
+    int biomeType; // 0-4 for biome-specific trees
 };
 
 struct RockInfo {

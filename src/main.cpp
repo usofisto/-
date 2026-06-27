@@ -155,23 +155,6 @@ int main() {
     // Озеро
     ResourceManager::Get().LoadTex("lake", "assets/lake.png");
 
-    // ==================== ТЕКСТУРЫ БИОМОВ ====================
-    // Загружаем траву для каждого биома (5 видов на биом)
-    const char* biomeNames[] = {"forest", "desert", "snow", "swamp", "meadow"};
-    for (int b = 0; b < 5; b++) {
-        for (int i = 1; i <= 5; i++) {
-            std::string key = std::string(biomeNames[b]) + "/grass_" + std::to_string(i);
-            std::string path = "assets/" + key + ".png";
-            ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
-        }
-        // Загружаем деревья для каждого биома (3 вида на биом)
-        for (int i = 1; i <= 3; i++) {
-            std::string key = std::string(biomeNames[b]) + "/tree_" + std::to_string(i);
-            std::string path = "assets/" + key + ".png";
-            ResourceManager::Get().LoadTex(key.c_str(), path.c_str());
-        }
-    }
-
     // ==================== ИГРОВЫЕ ПЕРЕМЕННЫЕ ====================
     GameState state = STATE_MENU;
     Player player;
@@ -936,22 +919,14 @@ int main() {
                     DrawRectangle(tx*100, ty*100, 100, 100, info.groundColor);
                 }
                 
-                // Трава (биомные чанки с тонировкой)
+                // Трава (оригинальные чанки)
                 for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
-                    // Определяем биом по позиции тайла
-                    float worldX = tx * 100.0f + 50.0f;
-                    float worldY = ty * 100.0f + 50.0f;
-                    BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
-                    const BiomeInfo& biomeInfo = GetBiomeInfo(tileBiome);
-                    
-                    // Используем оригинальную траву с вариацией
                     int grassIdx = ((tx * 7 + ty * 13) % 10) + 1;
                     std::string grassKey = "grass_" + std::to_string(grassIdx);
                     Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
                     if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass");
                     if (grassTex.id != 0) {
-                        // Применяем тонировку биома
-                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, 1.0f, biomeInfo.grassTint);
+                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, 1.0f, WHITE);
                     }
                     else { 
                         DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); 
@@ -1032,16 +1007,10 @@ int main() {
                 for (auto& t : trees) {
                     if (!t.active) continue;
                     
-                    // Определяем биом для тонировки
-                    BiomeType biome = (BiomeType)t.biomeType;
-                    const BiomeInfo& info = GetBiomeInfo(biome);
-                    
-                    // Используем оригинальные текстуры деревьев
                     std::string treeKey = "tree_" + std::to_string(t.treeType);
                     Texture2D treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
                     if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree");
 
-                    // Позиция с дрожанием
                     float offX = 0;
                     if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
 
@@ -1049,8 +1018,7 @@ int main() {
                         float scale = 1.0f;
                         float tw = treeTex.width * scale;
                         float th = treeTex.height * scale;
-                        // Применяем тонировку биома
-                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, info.tintColor);
+                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
                     } else {
                         DrawEllipse(t.position.x+offX,t.position.y+24,12,5,Color{0,0,0,100});
                         DrawTree({t.position.x+offX, t.position.y}, t.radius);

@@ -46,8 +46,13 @@ Texture2D ResourceManager::LoadTex(const std::string &name, const std::string &p
             {
                 pixels[index + 3] = 0;
             }
-            // 4. Убираем СВЕТЛО-СЕРЫЙ фон
-            else if (r > 200 && g > 200 && b > 200 && abs(r - g) < 20 && abs(g - b) < 20)
+            // 4. Убираем СВЕТЛО-СЕРЫЙ фон (r~190)
+            else if (r > 170 && g > 170 && b > 170 && abs(r - g) < 30 && abs(g - b) < 30)
+            {
+                pixels[index + 3] = 0;
+            }
+            // 5. Убираем СЕРЫЙ фон шахматки (r~140-200)
+            else if (r > 140 && g > 140 && b > 140 && abs(r - g) < 25 && abs(g - b) < 25)
             {
                 pixels[index + 3] = 0;
             }

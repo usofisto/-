@@ -219,7 +219,7 @@ int main() {
     std::vector<std::pair<std::string, float>> miniLog;
 
     // Травяные плитки
-    Color grassTiles[20][20];
+    Color grassTiles[30][30];
 
     // Объекты лагеря
     Vector2 campfirePos = { 1460.0f, 1000.0f };
@@ -268,8 +268,8 @@ int main() {
         AddLogMessage("[WASD] бег  [E] добыча  [I] инв.  [C] крафт  [F11] fullscreen", miniLog);
 
         srand(6789);
-        for (int x = 0; x < 20; ++x)
-            for (int y = 0; y < 20; ++y) {
+        for (int x = 0; x < 30; ++x)
+            for (int y = 0; y < 30; ++y) {
                 int r = rand()%8, g = rand()%12, b = rand()%8;
                 grassTiles[x][y] = Color{(unsigned char)(22+r),(unsigned char)(95+g),(unsigned char)(44+b),255};
             }
@@ -928,7 +928,7 @@ int main() {
                 BeginMode2D(camera);
 
                 // Рисуем фон для каждого тайла с цветом биома
-                for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
+                for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
                     float worldX = tx * 100.0f + 50.0f;
                     float worldY = ty * 100.0f + 50.0f;
                     BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
@@ -937,7 +937,7 @@ int main() {
                 }
                 
                 // Трава (биомные чанки с тонировкой)
-                for (int tx=0;tx<20;++tx) for (int ty=0;ty<20;++ty) {
+                for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
                     // Определяем биом по позиции тайла
                     float worldX = tx * 100.0f + 50.0f;
                     float worldY = ty * 100.0f + 50.0f;

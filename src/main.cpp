@@ -971,34 +971,21 @@ int main() {
                 // Палатка
                 DrawTent(tentPos);
 
-                // ==================== КОСТЁР С АНИМАЦИЕЙ PNG ====================
-                int fireFrame = (framesCounter / 10) % 4;
-                std::string fireKey = "campfire_" + std::to_string(fireFrame);
-                Texture2D fireTex = ResourceManager::Get().GetTex(fireKey.c_str());
-                if (fireTex.id != 0) {
-                    // Свечение костра ночью
-                    if (dayNightCycle.currentPhase==DAY_NIGHT || dayNightCycle.currentPhase==DAY_EVENING) {
-                        float glowPulse=sinf(framesCounter*0.1f)*0.15f+0.85f;
-                        float glowR=80*glowPulse;
-                        DrawCircle(campfirePos.x, campfirePos.y-10, glowR, Color{255,180,50,25});
-                        DrawCircle(campfirePos.x, campfirePos.y-10, glowR*0.6f, Color{255,200,80,35});
-                    }
-                    DrawTextureEx(fireTex, {campfirePos.x - 16, campfirePos.y - 16}, 0, 1.0f, WHITE); // Текстура уже 32px
-                } else {
-                    // Фоллбэк процедурный
-                    DrawCampfire(campfirePos, framesCounter);
+                // ==================== КОСТЁР (ПРОЦЕДУРНЫЙ) ====================
+                // Свечение костра ночью
+                if (dayNightCycle.currentPhase==DAY_NIGHT || dayNightCycle.currentPhase==DAY_EVENING) {
+                    float glowPulse=sinf(framesCounter*0.1f)*0.15f+0.85f;
+                    float glowR=80*glowPulse;
+                    DrawCircle(campfirePos.x, campfirePos.y-10, glowR, Color{255,180,50,25});
+                    DrawCircle(campfirePos.x, campfirePos.y-10, glowR*0.6f, Color{255,200,80,35});
                 }
+                // Рисуем костёр процедурно
+                DrawCampfire(campfirePos, framesCounter);
 
-                // ==================== ОЗЕРО С ВОЛНАМИ ====================
-                // Основная вода с текстурой
-                Texture2D lakeTex = ResourceManager::Get().GetTex("lake");
-                if (lakeTex.id != 0) {
-                    float lakeScale = (lakeRadius * 2.0f) / lakeTex.width;
-                    DrawTextureEx(lakeTex, {lakePos.x - lakeRadius, lakePos.y - lakeRadius}, 0, lakeScale, WHITE);
-                } else {
-                    DrawCircleV(lakePos, lakeRadius, Color{30, 100, 170, 200});
-                    DrawCircleV(lakePos, lakeRadius - 5, Color{40, 120, 190, 180});
-                }
+                // ==================== ОЗЕРО (ПРОЦЕДУРНОЕ) ====================
+                // Основная вода
+                DrawCircleV(lakePos, lakeRadius, Color{30, 100, 170, 200});
+                DrawCircleV(lakePos, lakeRadius - 5, Color{40, 120, 190, 180});
                 // Волны
                 for (int i = 0; i < 3; i++) {
                     float waveR = lakeRadius - 20 - i * 20;
@@ -1018,28 +1005,17 @@ int main() {
                     DrawTextEx(font, "[E] ОТДОХНУТЬ", Vector2{tentPos.x-55, tentPos.y-60}, 13, 1, Color{253,224,71,255});
                 }
 
-                // ==================== ДЕРЕВЬЯ (PNG) ====================
+                // ==================== ДЕРЕВЬЯ (ПРОЦЕДУРНЫЕ) ====================
                 for (auto& t : trees) {
                     if (!t.active) continue;
-                    
-                    std::string treeKey = "tree_" + std::to_string(t.treeType);
-                    Texture2D treeTex = ResourceManager::Get().GetTex(treeKey.c_str());
-                    if (treeTex.id == 0) treeTex = ResourceManager::Get().GetTex("tree");
 
                     float offX = 0;
                     if (t.shakeTimer > 0) offX = sinf(t.shakeTimer * 40) * 3;
 
-                    if (treeTex.id != 0) {
-                        float scale = 1.0f;
-                        float tw = treeTex.width * scale;
-                        float th = treeTex.height * scale;
-                        // Тень под деревом
-                        DrawEllipse(t.position.x+offX, t.position.y+24, 18, 7, Color{0,0,0,100});
-                        DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
-                    } else {
-                        DrawEllipse(t.position.x+offX,t.position.y+24,12,5,Color{0,0,0,100});
-                        DrawTree({t.position.x+offX, t.position.y}, t.radius);
-                    }
+                    // Тень под деревом
+                    DrawEllipse(t.position.x+offX, t.position.y+24, 18, 7, Color{0,0,0,100});
+                    // Рисуем дерево процедурно
+                    DrawTree({t.position.x+offX, t.position.y}, t.radius);
 
                     // Подсказка добычи
                     float d = sqrtf(powf(playerPos.x-t.position.x,2)+powf(playerPos.y-t.position.y,2));
@@ -1052,27 +1028,18 @@ int main() {
                     }
                 }
 
-                // ==================== КАМНИ (PNG) ====================
+                // ==================== КАМНИ (ПРОЦЕДУРНЫЕ) ====================
                 for (auto& r : rocks) {
                     if (!r.active) continue;
-                    // Используем уникальную текстуру для каждого камня
-                    std::string rockKey = "rock_" + std::to_string(r.rockType);
-                    Texture2D rockTex = ResourceManager::Get().GetTex(rockKey.c_str());
-                    if (rockTex.id == 0) rockTex = ResourceManager::Get().GetTex("rock"); // фоллбэк
 
                     float offX = 0;
                     if (r.shakeTimer > 0) offX = sinf(r.shakeTimer * 40) * 2;
 
-                    if (rockTex.id != 0) {
-                        float scale = 1.0f; // Текстуры уже обрезаны
-                        float rw = rockTex.width * scale;
-                        float rh = rockTex.height * scale;
-                        DrawTextureEx(rockTex, {r.position.x - rw/2 + offX, r.position.y - rh/2}, 0, scale, WHITE);
-                    } else {
-                        DrawEllipse(r.position.x,r.position.y+r.radius-2,r.radius,r.radius*0.4f,Color{0,0,0,100});
-                        DrawCircleV(r.position,r.radius,Color{82,82,91,255});
-                        DrawCircleV(r.position,r.radius-3,Color{113,113,122,255});
-                    }
+                    // Тень под камнем
+                    DrawEllipse(r.position.x+offX, r.position.y+r.radius-2, r.radius, r.radius*0.4f, Color{0,0,0,100});
+                    // Рисуем камень процедурно
+                    DrawCircleV({r.position.x+offX, r.position.y}, r.radius, Color{82,82,91,255});
+                    DrawCircleV({r.position.x+offX, r.position.y}, r.radius-3, Color{113,113,122,255});
 
                     // Подсказка
                     float d = sqrtf(powf(playerPos.x-r.position.x,2)+powf(playerPos.y-r.position.y,2));
@@ -1091,8 +1058,9 @@ int main() {
 
                 UpdateAndDrawParticles(dt);
 
-                // ==================== ИГРОК + ВЗМАХ ОРУЖИЕМ ====================
+                // ==================== ИГРОК (ПРОЦЕДУРНЫЙ) ====================
                 bool isMoving = (IsKeyDown(KEY_W)||IsKeyDown(KEY_UP)||IsKeyDown(KEY_S)||IsKeyDown(KEY_DOWN)||IsKeyDown(KEY_A)||IsKeyDown(KEY_LEFT)||IsKeyDown(KEY_D)||IsKeyDown(KEY_RIGHT)) && !showInventory && !showCrafting;
+                // Рисуем игрока процедурно (без PNG)
                 DrawPlayerAvatar(player.className, playerPos, playerRadius, playerFacing, isMoving, framesCounter, bgDark);
 
                 // Взмах оружием при добыче

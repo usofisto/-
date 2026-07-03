@@ -919,25 +919,29 @@ int main() {
                     float worldY = ty * 100.0f + 50.0f;
                     BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
                     const BiomeInfo& info = GetBiomeInfo(tileBiome);
-                    // Рисуем с небольшим перекрытием чтобы убрать зазоры
+                    // Рисуем с перекрытием чтобы убрать зазоры
                     DrawRectangle(tx*100 - 1, ty*100 - 1, 102, 102, info.groundColor);
                 }
                 
-                // Трава — рисуем текстуры с масштабированием чтобы покрыть весь тайл
+                // Добавляем детали травы (маленькие кружочки разных оттенков зелёного)
+                srand(1234);
                 for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
-                    int grassIdx = ((tx * 7 + ty * 13) % 10) + 1;
-                    std::string grassKey = "grass_" + std::to_string(grassIdx);
-                    Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
-                    if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass");
-                    if (grassTex.id != 0) {
-                        // Масштабируем текстуру чтобы покрыть весь тайл 100x100
-                        float scaleX = 100.0f / grassTex.width;
-                        float scaleY = 100.0f / grassTex.height;
-                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, scaleX, WHITE);
-                    }
-                    else { 
-                        // Фоллбэк — рисуем разноцветные квадраты
-                        DrawRectangle(tx*100, ty*100, 100, 100, grassTiles[tx][ty]); 
+                    BiomeType tileBiome = GetBiomeAtPosition(tx*100+50, ty*100+50);
+                    const BiomeInfo& info = GetBiomeInfo(tileBiome);
+                    
+                    // Рисуем 5-8 деталей травы на каждый тайл
+                    int details = 5 + rand()%4;
+                    for (int d=0; d<details; d++) {
+                        float dx = tx*100 + rand()%80 + 10;
+                        float dy = ty*100 + rand()%80 + 10;
+                        float size = 2 + rand()%4;
+                        Color grassColor = {
+                            (unsigned char)(info.groundColor.r + rand()%30 - 15),
+                            (unsigned char)(info.groundColor.g + rand()%30 - 15),
+                            (unsigned char)(info.groundColor.b + rand()%20 - 10),
+                            255
+                        };
+                        DrawCircle(dx, dy, size, grassColor);
                     }
                 }
 

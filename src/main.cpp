@@ -926,25 +926,36 @@ int main() {
                     DrawRectangle(tx*100 - 1, ty*100 - 1, 102, 102, info.groundColor);
                 }
                 
-                // Добавляем детали травы (маленькие кружочки разных оттенков зелёного)
-                srand(1234);
+                // Рисуем текстуры травы поверх биомов
                 for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
-                    BiomeType tileBiome = GetBiomeAtPosition(tx*100+50, ty*100+50);
-                    const BiomeInfo& info = GetBiomeInfo(tileBiome);
+                    // Выбираем текстуру травы по координатам (для разнообразия)
+                    int grassIdx = ((tx * 7 + ty * 13) % 10) + 1;
+                    std::string grassKey = "grass_" + std::to_string(grassIdx);
+                    Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
                     
-                    // Рисуем 5-8 деталей травы на каждый тайл
-                    int details = 5 + rand()%4;
-                    for (int d=0; d<details; d++) {
-                        float dx = tx*100 + rand()%80 + 10;
-                        float dy = ty*100 + rand()%80 + 10;
-                        float size = 2 + rand()%4;
-                        Color grassColor = {
-                            (unsigned char)(info.groundColor.r + rand()%30 - 15),
-                            (unsigned char)(info.groundColor.g + rand()%30 - 15),
-                            (unsigned char)(info.groundColor.b + rand()%20 - 10),
-                            255
-                        };
-                        DrawCircle(dx, dy, size, grassColor);
+                    if (grassTex.id != 0) {
+                        // Рисуем PNG текстуру травы
+                        // Масштабируем чтобы покрыть весь тайл 100x100
+                        float scale = 100.0f / grassTex.width;
+                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, scale, WHITE);
+                    } else {
+                        // Фоллбэк — рисуем процедурные детали если текстура не загрузилась
+                        BiomeType tileBiome = GetBiomeAtPosition(tx*100+50, ty*100+50);
+                        const BiomeInfo& info = GetBiomeInfo(tileBiome);
+                        srand(tx * 1000 + ty);
+                        int details = 5 + rand()%4;
+                        for (int d=0; d<details; d++) {
+                            float dx = tx*100 + rand()%80 + 10;
+                            float dy = ty*100 + rand()%80 + 10;
+                            float size = 2 + rand()%4;
+                            Color grassColor = {
+                                (unsigned char)(info.groundColor.r + rand()%30 - 15),
+                                (unsigned char)(info.groundColor.g + rand()%30 - 15),
+                                (unsigned char)(info.groundColor.b + rand()%20 - 10),
+                                255
+                            };
+                            DrawCircle(dx, dy, size, grassColor);
+                        }
                     }
                 }
 

@@ -910,26 +910,34 @@ int main() {
             if (state==STATE_2D_WORLD) {
                 BeginMode2D(camera);
 
-                // Рисуем фон для каждого тайла с цветом биома
+                // Рисуем сплошной фон для всего мира (единый цвет)
+                DrawRectangle(0, 0, 3000, 3000, Color{34, 85, 44, 255}); // Тёмно-зелёный
+                
+                // Рисуем биомы с плавными переходами
                 for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
                     float worldX = tx * 100.0f + 50.0f;
                     float worldY = ty * 100.0f + 50.0f;
                     BiomeType tileBiome = GetBiomeAtPosition(worldX, worldY);
                     const BiomeInfo& info = GetBiomeInfo(tileBiome);
-                    DrawRectangle(tx*100, ty*100, 100, 100, info.groundColor);
+                    // Рисуем с небольшим перекрытием чтобы убрать зазоры
+                    DrawRectangle(tx*100 - 1, ty*100 - 1, 102, 102, info.groundColor);
                 }
                 
-                // Трава (оригинальные чанки)
+                // Трава — рисуем текстуры с масштабированием чтобы покрыть весь тайл
                 for (int tx=0;tx<30;++tx) for (int ty=0;ty<30;++ty) {
                     int grassIdx = ((tx * 7 + ty * 13) % 10) + 1;
                     std::string grassKey = "grass_" + std::to_string(grassIdx);
                     Texture2D grassTex = ResourceManager::Get().GetTex(grassKey.c_str());
                     if (grassTex.id == 0) grassTex = ResourceManager::Get().GetTex("grass");
                     if (grassTex.id != 0) {
-                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, 1.0f, WHITE);
+                        // Масштабируем текстуру чтобы покрыть весь тайл 100x100
+                        float scaleX = 100.0f / grassTex.width;
+                        float scaleY = 100.0f / grassTex.height;
+                        DrawTextureEx(grassTex, {(float)(tx*100), (float)(ty*100)}, 0, scaleX, WHITE);
                     }
                     else { 
-                        DrawRectangle(tx*100,ty*100,100,100,grassTiles[tx][ty]); 
+                        // Фоллбэк — рисуем разноцветные квадраты
+                        DrawRectangle(tx*100, ty*100, 100, 100, grassTiles[tx][ty]); 
                     }
                 }
 
@@ -1018,6 +1026,8 @@ int main() {
                         float scale = 1.0f;
                         float tw = treeTex.width * scale;
                         float th = treeTex.height * scale;
+                        // Тень под деревом
+                        DrawEllipse(t.position.x+offX, t.position.y+24, 18, 7, Color{0,0,0,100});
                         DrawTextureEx(treeTex, {t.position.x - tw/2 + offX, t.position.y - th + 10}, 0, scale, WHITE);
                     } else {
                         DrawEllipse(t.position.x+offX,t.position.y+24,12,5,Color{0,0,0,100});

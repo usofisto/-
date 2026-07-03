@@ -6,6 +6,7 @@
 #include <string>
 #include <sstream>
 #include <cmath>
+#include "biome_system.h"
 
 // Рисование красивого бара с градиентом и скруглениями
 inline void DrawFancyBar(float x, float y, float w, float h, float value, float maxValue, Color fgColor, Color bgColor, const char* label, Font& font) {
@@ -106,11 +107,22 @@ inline void DrawMinimap(float x, float y, float size,
     DrawLine(x + size * 0.5f, y, x + size * 0.5f, y + size, Color{60, 80, 65, 80});
     DrawLine(x, y + size * 0.5f, x + size, y + size * 0.5f, Color{60, 80, 65, 80});
     
-    // Названия биомов
-    DrawTextEx(font, "Лес", {x + 5, y + 5}, 9, 1, Color{100, 200, 120, 180});
-    DrawTextEx(font, "Пустыня", {x + size - 45, y + 5}, 9, 1, Color{200, 180, 100, 180});
-    DrawTextEx(font, "Снег", {x + size - 30, y + size - 15}, 9, 1, Color{200, 220, 240, 180});
-    DrawTextEx(font, "Болото", {x + 5, y + size - 15}, 9, 1, Color{80, 120, 60, 180});
+    // Названия биомов (динамические по позиции игрока)
+    BiomeType currentBiome = GetBiomeAtPosition(playerPos.x, playerPos.y);
+    const char* biomeNames[] = {"Лес", "Пустыня", "Снег", "Болото", "Луга"};
+    Color biomeColors[] = {
+        Color{100, 200, 120, 180},  // Лес
+        Color{200, 180, 100, 180},  // Пустыня
+        Color{200, 220, 240, 180},  // Снег
+        Color{80, 120, 60, 180},    // Болото
+        Color{180, 220, 100, 180}   // Луга
+    };
+    
+    // Показываем текущий биом игрока
+    int biomeIdx = (int)currentBiome;
+    if (biomeIdx >= 0 && biomeIdx < 5) {
+        DrawTextEx(font, biomeNames[biomeIdx], {x + 5, y + 5}, 10, 1, biomeColors[biomeIdx]);
+    }
     
     // День
     std::stringstream daySS;
@@ -181,6 +193,12 @@ inline void DrawGameHUD(Font& font, int health, int maxHealth, int hunger, int m
     std::stringstream timeSS;
     timeSS << (h < 10 ? "0" : "") << h << ":" << (m < 10 ? "0" : "") << m;
     
+    // Определяем фазу дня по часу
+    int phaseIndex = 0; // Утро (6-12)
+    if (h >= 12 && h < 18) phaseIndex = 1;      // День (12-18)
+    else if (h >= 18 && h < 21) phaseIndex = 2;  // Вечер (18-21)
+    else if (h >= 21 || h < 6) phaseIndex = 3;   // Ночь (21-6)
+    
     const char* phaseNames[] = {"Утро", "День", "Вечер", "Ночь"};
     Color phaseColors[] = {
         Color{255, 200, 100, 255},  // Утро
@@ -190,7 +208,7 @@ inline void DrawGameHUD(Font& font, int health, int maxHealth, int hunger, int m
     };
     
     DrawTextEx(font, timeSS.str().c_str(), {sw - 200, 15}, 20, 1, Color{220, 220, 220, 255});
-    DrawTextEx(font, phaseNames[0], {sw - 130, 18}, 14, 1, phaseColors[0]); // TODO: правильная фаза
+    DrawTextEx(font, phaseNames[phaseIndex], {sw - 130, 18}, 14, 1, phaseColors[phaseIndex]);
     
     // ===== МИНИ-КАРТА (справа) =====
     float mmSize = 140;

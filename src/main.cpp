@@ -814,6 +814,9 @@ int main() {
         // ==================== ОТРИСОВКА ====================
         BeginDrawing();
         ClearBackground(bgDark);
+        
+        // Включаем правильный режим смешивания для прозрачности
+        BeginBlendMode(BLEND_ALPHA);
 
         if (state==STATE_MENU) {
             MenuState ms=gameMenu.GetCurrentState();
@@ -1399,6 +1402,10 @@ int main() {
                     nullptr, nullptr, nullptr);
             }
         }
+        
+        // Восстанавливаем режим смешивания
+        EndBlendMode();
+        
         EndDrawing();
     }
 

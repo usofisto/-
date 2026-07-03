@@ -17,50 +17,50 @@ Texture2D ResourceManager::LoadTex(const std::string &name, const std::string &p
     // Конвертируем в RGBA для работы с альфа-каналом
     ImageFormat(&img, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);
 
-    // Убираем фон при загрузке
-    unsigned char *pixels = (unsigned char *)img.data;
-    int width = img.width;
-    int height = img.height;
+    // Удаляем фон: белый, серый, светло-серый
+    Color *pixels = LoadImageColors(img);
+    int total = img.width * img.height;
 
-    for (int y = 0; y < height; y++)
+    for (int i = 0; i < total; i++)
     {
-        for (int x = 0; x < width; x++)
-        {
-            int index = (y * width + x) * 4;
-            unsigned char r = pixels[index];
-            unsigned char g = pixels[index + 1];
-            unsigned char b = pixels[index + 2];
+        unsigned char r = pixels[i].r;
+        unsigned char g = pixels[i].g;
+        unsigned char b = pixels[i].b;
 
-            // 1. Убираем маджента (фиолетовый) фон
-            if (r > 180 && g < 100 && b > 180)
-            {
-                pixels[index + 3] = 0;
-            }
-            // 2. Убираем БЕЛЫЙ фон (деревья, камни)
-            else if (r > 240 && g > 240 && b > 240)
-            {
-                pixels[index + 3] = 0;
-            }
-            // 3. Убираем ЧЁРНЫЕ пиксели шахматки (трава)
-            else if (r < 20 && g < 20 && b < 20)
-            {
-                pixels[index + 3] = 0;
-            }
-            // 4. Убираем СВЕТЛО-СЕРЫЙ фон (r~190)
-            else if (r > 170 && g > 170 && b > 170 && abs(r - g) < 30 && abs(g - b) < 30)
-            {
-                pixels[index + 3] = 0;
-            }
-            // 5. Убираем СЕРЫЙ фон шахматки (r~140-200)
-            else if (r > 140 && g > 140 && b > 140 && abs(r - g) < 25 && abs(g - b) < 25)
-            {
-                pixels[index + 3] = 0;
-            }
+        // Белый фон (r>240, g>240, b>240)
+        if (r > 240 && g > 240 && b > 240)
+        {
+            pixels[i].a = 0;
+        }
+        // Светло-серый фон (r>200, g>200, b>200)
+        else if (r > 200 && g > 200 && b > 200)
+        {
+            pixels[i].a = 0;
+        }
+        // Серый фон (r>170, g>170, b>170, разброс < 30)
+        else if (r > 170 && g > 170 && b > 170 &&
+                 abs(r - g) < 30 && abs(g - b) < 30 && abs(r - b) < 30)
+        {
+            pixels[i].a = 0;
+        }
+        // Чёрный фон (r<20, g<20, b<20)
+        else if (r < 20 && g < 20 && b < 20)
+        {
+            pixels[i].a = 0;
         }
     }
 
-    // Загружаем текстуру из обработанного изображения
-    Texture2D tex = LoadTextureFromImage(img);
+    // Загружаем обработанные пиксели обратно
+    Image processed = {
+        .data = pixels,
+        .width = img.width,
+        .height = img.height,
+        .mipmaps = 1,
+        .format = PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
+    };
+
+    Texture2D tex = LoadTextureFromImage(processed);
+    UnloadImageColors(pixels);
     UnloadImage(img);
 
     textures[name] = tex;
